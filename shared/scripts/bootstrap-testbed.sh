@@ -191,6 +191,7 @@ configure_rses() {
         local host=$(echo "$rse" | tr '[:upper:]' '[:lower:]')
         $cmd rse add "$rse" || true
         $cmd rse set-attribute --rse "$rse" --key fts --value "$fts_endpoint"
+        $cmd rse set-attribute --rse "$rse" --key verify_checksum --value True
         $cmd rse add-protocol "$rse" --scheme root --hostname "$host" --port 1094 --prefix //rucio \
             --impl rucio.rse.protocols.gfal.Default \
             --domain-json '{"wan":{"read":1,"write":1,"delete":1,"third_party_copy_read":1,"third_party_copy_write":1},"lan":{"read":1,"write":1,"delete":1}}'

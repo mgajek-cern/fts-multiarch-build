@@ -42,6 +42,6 @@ Chosen option: **Thin Backends (Protocol Fidelity)**, because the core complexit
 ### Confirmation
 
 Compliance is confirmed by:
-* `./scripts/test-fts-with-storm-webdav.sh` (Validates HTTP-TPC protocol).
-* `./scripts/test-fts-with-s3.sh` (Validates S3 protocol).
+* `./shared/tests/test-fts-with-storm-webdav.py` (Validates HTTP-TPC protocol).
+* `./shared/tests/test-fts-with-s3.py` (Validates S3 protocol).
 * OIDC token forwarding successfully reaching the StoRM/XRootD logs.

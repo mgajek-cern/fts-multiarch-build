@@ -25,7 +25,6 @@ helm-charts/
 │
 ├── fts/                          # Custom image (Dockerfile.fts) — GSI + OIDC FTS server
 ├── xrootd/                       # rucio/test-xrootd (GSI)
-├── xrootd-scitokens/             # Custom image (Dockerfile.xrd) — XRootD with scitokens
 ├── storm-webdav/                 # ghcr.io/italiangrid/storm-webdav
 ├── webdav/                       # rucio/test-webdav (Apache + WebDAV)
 ├── minio/                        # minio/minio + mc init Job
@@ -49,6 +48,7 @@ ln -s ../../../../certs certs
 ln -s ../../../../shared/config configs
 ln -s ../../../../shared/patches patches
 ln -s ../../../../shared/scripts scripts
+ln -s ../../../../shared/tests tests
 ```
 
 ## Quickstart
@@ -66,28 +66,30 @@ helm install testbed helm-charts/rucio-storage-testbed --namespace rucio-testbed
 You should end up with something like:
 
 ```bash
-$ kubectl get pods -n rucio-testbed
-NAME                            READY   STATUS    RESTARTS   AGE
-fts-554f49847f-xs7w8            1/1     Running   0          6s
-fts-oidc-599db94fc6-mkzvd       1/1     Running   0          6s
-ftsdb-0                         1/1     Running   0          6s
-ftsdb-oidc-0                    1/1     Running   0          6s
-keycloak-859468646d-jxrj7       1/1     Running   0          6s
-minio1-0                        1/1     Running   0          6s
-minio2-0                        1/1     Running   0          6s
-rucio-66bccfb774-pnk89          2/2     Running   0          6s
-rucio-client-77bd45466d-k4d7g   1/1     Running   0          6s
-rucio-oidc-6f4c6b6784-5n8h7     2/2     Running   0          6s
-ruciodb-0                       1/1     Running   0          6s
-ruciodb-oidc-0                  1/1     Running   0          6s
-storm1-0                        1/1     Running   0          6s
-storm2-0                        1/1     Running   0          6s
-webdav1-7d46f9455b-62m9h        1/1     Running   0          6s
-webdav2-cc677bd59-7vtj8         1/1     Running   0          6s
-xrd1-76ff88f7d-nrn49            1/1     Running   0          6s
-xrd2-6dd8869444-dm7qb           1/1     Running   0          6s
-xrd3-5c8995cf57-zhxxz           1/1     Running   0          6s
-xrd4-f85499bf8-t8zqz            1/1     Running   0          6s
+$  kubectl get pods -n rucio-testbed
+NAME                            READY   STATUS      RESTARTS   AGE
+fts-86f4b957cb-trsff            0/1     Running     0          64s
+fts-oidc-8556f7f4cf-r69w9       0/1     Running     0          64s
+ftsdb-0                         1/1     Running     0          63s
+ftsdb-oidc-0                    1/1     Running     0          64s
+keycloak-55845db8df-8d4k9       1/1     Running     0          64s
+minio1-0                        1/1     Running     0          63s
+minio2-0                        1/1     Running     0          64s
+rucio-6578b864c9-wpb4p          2/2     Running     0          63s
+rucio-bootstrap-db-rz8zc        0/1     Completed   0          63s
+rucio-client-574f4bcb48-gkl9x   1/1     Running     0          64s
+rucio-oidc-9876d5b9c-gjd56      2/2     Running     0          63s
+rucio-oidc-bootstrap-db-pc8bp   0/1     Completed   0          8s
+ruciodb-0                       1/1     Running     0          63s
+ruciodb-oidc-0                  1/1     Running     0          64s
+storm1-0                        1/1     Running     0          64s
+storm2-0                        1/1     Running     0          64s
+webdav1-7d46f9455b-zmqxp        1/1     Running     0          63s
+webdav2-cc677bd59-2rsmt         1/1     Running     0          64s
+xrd1-656c4b88b4-948xd           1/1     Running     0          64s
+xrd2-65b8b9bcb5-vppgs           1/1     Running     0          64s
+xrd3-77875fb57c-9qpwn           1/1     Running     0          64s
+xrd4-84686559dd-zxrgv           1/1     Running     0          64s
 ```
 
 Tear down:
@@ -114,7 +116,7 @@ kubectl -n rucio-testbed delete pvc --all   # PVCs aren't removed by `helm unins
   `https://keycloak:8443`, `https://fts:8446`, etc. work without modification.
 * **Reuse over reinvention** — `rucio-server` and `postgresql` come from
   upstream charts as dependencies; only services without a usable upstream
-  chart (FTS, StoRM-WebDAV, the scitokens XRootD, etc.) ship as new local
+  chart (FTS, StoRM-WebDAV, XRootD with missing runtime dependencies, etc.) ship as new local
   charts.
 * **OIDC subchart alias** — the second `rucio-server` dependency is aliased
   as `rucio-oidc` (hyphen, not camelCase) because the upstream chart

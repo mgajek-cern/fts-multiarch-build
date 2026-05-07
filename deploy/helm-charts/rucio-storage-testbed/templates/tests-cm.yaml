@@ -1,0 +1,26 @@
+{{- if .Values.tests.create }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.tests.configMapName }}
+  labels:
+    app.kubernetes.io/name: rucio-storage-testbed
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  {{- /*
+    Slurp every file under files/tests/ — including nested directories —
+    and expose them flat (last path component as key). This matches what the
+    docker-compose bind mounts look like from inside each container:
+
+        shared/tests/test-rucio-transfers.py  →  /tests/test-rucio-transfers.py
+
+    Each subchart's volumeMount uses `subPath: <flat-name>` to pick the
+    specific key it needs.
+  */}}
+  {{- range $path, $_ := .Files.Glob "files/tests/**" }}
+    {{- $name := base $path }}
+  {{ $name }}: |-
+{{ $.Files.Get $path | indent 4 }}
+  {{- end }}
+{{- end }}

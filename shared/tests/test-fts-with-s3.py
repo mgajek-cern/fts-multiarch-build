@@ -12,10 +12,10 @@ xrdfs, curl with the client cert, and network access to all endpoints.
 
 Typical invocations:
     # Compose
-    docker exec compose-fts-1 bash -c "pytest /scripts/test-fts-with-s3.py"
+    docker exec compose-fts-1 bash -c "pytest /tests/test-fts-with-s3.py"
 
     # Kubernetes
-    kubectl -n rucio-testbed exec deploy/fts -- bash -c "pytest /scripts/test-fts-with-s3.py"
+    kubectl -n rucio-testbed exec deploy/fts -- bash -c "pytest /tests/test-fts-with-s3.py"
 """
 
 import datetime

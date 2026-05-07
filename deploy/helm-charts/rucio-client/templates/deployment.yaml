@@ -84,6 +84,9 @@ spec:
             - name: scripts
               mountPath: /scripts
               readOnly: true
+            - name: tests
+              mountPath: /tests
+              readOnly: true
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
@@ -97,6 +100,10 @@ spec:
         - name: scripts
           configMap:
             name: {{ .Values.scriptsConfigMap }}
+            defaultMode: 0755
+        - name: tests
+          configMap:
+            name: {{ .Values.testsConfigMap }}
             defaultMode: 0755
       {{- with .Values.nodeSelector }}
       nodeSelector:

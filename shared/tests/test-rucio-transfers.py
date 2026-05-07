@@ -12,26 +12,31 @@ Runtime-agnostic: respects $RUNTIME (compose | k8s, default compose).
 Typical invocations:
     # Compose
     docker exec compose-rucio-client-1 \\
-        bash -c "RUNTIME=compose pytest /scripts/test-rucio-transfers.py"
+        bash -c "RUNTIME=compose pytest /tests/test-rucio-transfers.py"
 
     # Kubernetes
     kubectl -n rucio-testbed exec deploy/rucio-client -- \\
-        bash -c "RUNTIME=k8s pytest /scripts/test-rucio-transfers.py"
+        bash -c "RUNTIME=k8s pytest /tests/test-rucio-transfers.py"
 """
 
 import logging
-import re
 import time
-import zlib
 
 import pytest
 
 from rucio.client import Client
 from rucio.common.config import get_config
 from rucio.common.exception import Duplicate, RucioException, RuleNotFound
-from rucio.rse import rsemanager as rsemgr
 
-from testbed import RUNTIME, svc_exec
+from testbed import (
+    RUNTIME,
+    compute_pfn,
+    pfn_to_local,
+    prepare_dest_dir,
+    run_daemons,
+    seed,
+    svc_exec,
+)
 
 
 log = logging.getLogger("rucio-transfers")
@@ -97,49 +102,6 @@ def fts_proxy():
 
 
 # ── Storage helpers ────────────────────────────────────────────────────────
-def compute_metadata(storage_svc: str, fpath: str) -> tuple:
-    """Return (size_bytes, adler32_hex) for a file in a service container."""
-    raw = svc_exec(storage_svc, ["cat", fpath])
-    size = len(raw)
-    if size == 0:
-        raise RuntimeError(f"File {fpath} on {storage_svc} is empty or missing")
-    return size, "%08x" % (zlib.adler32(raw) & 0xFFFFFFFF)
-
-
-def compute_pfn(client: Client, rse: str, scope: str, name: str) -> str:
-    rse_info = rsemgr.get_rse_info(rse=rse, vo=client.vo)
-    return list(
-        rsemgr.lfns2pfns(
-            rse_info, [{"scope": scope, "name": name}], operation="write"
-        ).values()
-    )[0]
-
-
-def pfn_to_local_path(rse: str, pfn: str) -> str:
-    if rse.startswith("STORM"):
-        return re.sub(r"^[a-z]+://storm[1-2]:[0-9]+/data/", "/storage/data/", pfn)
-    return re.sub(r"^/+", "/", re.sub(r"^[a-z]+://[^/]+", "", pfn))
-
-
-def seed_file(storage_svc: str, fpath: str, owner: str) -> None:
-    script = (
-        "set -e; "
-        f'mkdir -p "$(dirname {fpath})"; '
-        f'printf "rucio-test\\n" > {fpath}; '
-        f"chown {owner}:{owner} {fpath} 2>/dev/null || true; "
-        f"ls -la {fpath}"
-    )
-    out = svc_exec(storage_svc, ["sh", "-c", script], user="root")
-    log.info("  %s", out.decode().strip())
-
-
-def prepare_dest_dir(storage_svc: str, fpath: str, owner: str) -> None:
-    script = (
-        f'mkdir -p "$(dirname {fpath})" && '
-        f'chown {owner}:{owner} "$(dirname {fpath})" 2>/dev/null || true'
-    )
-    svc_exec(storage_svc, ["sh", "-c", script], user="root")
-    log.info("  ✓ Destination dir ready on %s: %s", storage_svc, fpath)
 
 
 def register_replica(
@@ -186,18 +148,6 @@ def add_rule(client: Client, scope: str, name: str, dst_rse: str) -> str:
     )[0]
     log.info("  ✓ Rule created: %s → %s (%s)", name, dst_rse, rule_id)
     return rule_id
-
-
-def run_daemons(rucio_svc: str) -> None:
-    log.info("=== Running daemons on %s ===", rucio_svc)
-    for daemon in (
-        ["rucio-judge-evaluator", "--run-once"],
-        ["rucio-conveyor-submitter", "--run-once"],
-        ["rucio-conveyor-poller", "--run-once", "--older-than", "0"],
-        ["rucio-conveyor-finisher", "--run-once"],
-    ):
-        log.info("  → %s", " ".join(daemon))
-        svc_exec(rucio_svc, daemon)
 
 
 def validate_rule(
@@ -281,14 +231,14 @@ def transfer_workflow(
     log.info("[ Test: %s (%s → %s) ]", label, src_rse, dst_rse)
 
     pfn = compute_pfn(client, src_rse, scope, name)
-    local = pfn_to_local_path(src_rse, pfn)
+    local = pfn_to_local(src_rse, pfn)
     log.info("  PFN:            %s", pfn)
     log.info("  Container path: %s", local)
-    seed_file(src_svc, local, owner)
-    size, adler32 = compute_metadata(src_svc, local)
+
+    size, adler32 = seed(src_svc, local, owner)
     register_replica(client, src_rse, scope, name, pfn, size, adler32)
 
-    dst_path = pfn_to_local_path(dst_rse, compute_pfn(client, dst_rse, scope, name))
+    dst_path = pfn_to_local(dst_rse, compute_pfn(client, dst_rse, scope, name))
     prepare_dest_dir(dst_svc, dst_path, owner)
 
     rule_id = add_rule(client, scope, name, dst_rse)
@@ -363,9 +313,8 @@ def test_add_dataset(client_std, fts_proxy):
     registered = []
     for f in files:
         pfn = compute_pfn(client_std, "XRD1", scope, f["name"])
-        local = pfn_to_local_path("XRD1", pfn)
-        seed_file(XRD1, local, "xrootd")
-        size, adler32 = compute_metadata(XRD1, local)
+        local = pfn_to_local("XRD1", pfn)
+        size, adler32 = seed(XRD1, local, "xrootd")
         registered.append(
             {
                 "scope": scope,
@@ -383,7 +332,7 @@ def test_add_dataset(client_std, fts_proxy):
 
     # Prepare destination dirs for both files
     for f in registered:
-        dst_path = pfn_to_local_path(
+        dst_path = pfn_to_local(
             "XRD2", compute_pfn(client_std, "XRD2", scope, f["name"])
         )
         prepare_dest_dir(XRD2, dst_path, "xrootd")
@@ -416,9 +365,8 @@ def test_add_files_to_dataset(client_std, fts_proxy):
     registered = []
     for f in files:
         pfn = compute_pfn(client_std, "XRD1", scope, f["name"])
-        local = pfn_to_local_path("XRD1", pfn)
-        seed_file(XRD1, local, "xrootd")
-        size, adler32 = compute_metadata(XRD1, local)
+        local = pfn_to_local("XRD1", pfn)
+        size, adler32 = seed(XRD1, local, "xrootd")
         registered.append(
             {
                 "scope": scope,
@@ -437,7 +385,7 @@ def test_add_files_to_dataset(client_std, fts_proxy):
     log.info("  ✓ Files appended to existing dataset")
 
     for f in registered:
-        dst_path = pfn_to_local_path(
+        dst_path = pfn_to_local(
             "XRD2", compute_pfn(client_std, "XRD2", scope, f["name"])
         )
         prepare_dest_dir(XRD2, dst_path, "xrootd")

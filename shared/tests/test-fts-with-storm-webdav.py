@@ -8,10 +8,10 @@ Keycloak, storm1, and storm2, and the CA trust anchors already configured.
 
 Typical invocations:
     # Compose
-    docker exec compose-fts-oidc-1 bash -c "pytest /scripts/test-fts-with-storm-webdav.py"
+    docker exec compose-fts-oidc-1 bash -c "pytest /tests/test-fts-with-storm-webdav.py"
 
     # Kubernetes
-    kubectl -n rucio-testbed exec deploy/fts-oidc -- bash -c "pytest /scripts/test-fts-with-storm-webdav.py"
+    kubectl -n rucio-testbed exec deploy/fts-oidc -- bash -c "pytest /tests/test-fts-with-storm-webdav.py"
 """
 
 import importlib.util

@@ -8,65 +8,86 @@
   and appending to an existing dataset (`add_files_to_dataset`).
   See [user-workflows.md](./docs/user-workflows.md).
 - [x] **Cloud-Native Dev Environment:** `.devcontainer` setup with a kind
-  cluster pre-wired for local k8s development, and Helm charts covering
+  cluster pre-wired for local k8s development and Helm charts covering
   the full Rucio + FTS + Storage (XRootD, WebDAV, StoRM, MinIO) + OIDC
   (Keycloak) stack, mirroring the compose topology on Kubernetes.
 - [x] **Bash → Pytest Migration:** All FTS-level and Rucio E2E tests
   migrated to self-contained pytest suites running inside service
   containers; shared infrastructure helpers extracted into `testbed.py`.
+- [x] **Unified XRootD Helm Chart:** Single chart with `scitokens.enabled`
+  flag replacing separate `xrootd` and `xrootd-scitokens` sub-charts.
+- [x] **k8s GSI Fix:** Resolved five compounding issues preventing XRootD
+  GSI TPC on Kubernetes (CA signing policies, file modes, static config,
+  CRL level). Both runtimes now pass the full test suite.
 
-## Phase 2: Failure Mode Injection
+## Phase 2: Failure Mode Validation
 
-The goal is to validate error-handling paths, not just happy paths. All
-three scenarios are implementable with existing `testbed.py` helpers and
-no new tooling dependencies.
+Three deterministic tests covering data integrity, auth lifecycle, and
+infrastructure availability. All run with `--run-once` daemons; no
+timing dependencies. Run with `make test-failure-modes`.
 
-- [ ] **Checksum Mismatch Injection**
-  Seed a file with known content, register it in Rucio with a deliberately
-  wrong `adler32`, add a replication rule, run daemons, assert the rule
-  enters STUCK state (`locks_stuck_cnt > 0`) and the stuck lock reason
-  contains a checksum-related message.
-  - Tooling: `seed_file` + `register_replica` from `testbed.py` with a
-    corrupted checksum argument; `validate_rule` already surfaces stuck
-    lock details via `list_replica_locks`.
-  - Value: validates Rucio's integrity-checking path end to end without
-    any new infrastructure.
+- [x] **Checksum Mismatch Injection** (`test-rucio-checksum-mismatch.py`)
+  Registers a file with a deliberately wrong `adler32`. FTS detects the
+  mismatch on dispatch and rejects the transfer; Rucio leaves the request FAILED.
 
-- [ ] **Token Expiry Mid-Transfer**
-  Set Keycloak `accessTokenLifespan` to 60s via the Admin REST API in a
-  pytest fixture, submit a transfer that takes longer than the token
-  lifetime (e.g. a large file or an artificially slowed storage endpoint),
-  assert the job still reaches FINISHED — proving the Rucio conveyor and
-  FTS OIDC refresh path handle expiry transparently.
-  - Tooling: Keycloak Admin REST API (`PUT /admin/realms/rucio`);
-    `poll_fts_job_http` from `testbed.py`; restore token lifetime in
-    fixture teardown.
-  - Value: directly tests the token refresh loop in `fts3rest` and the
-    Rucio conveyor — the most operationally critical OIDC failure mode.
+- [x] **Source Replica Unavailability** (`test-rucio-replica-unavailable.py`)
+  Two tests covering both layers of source unavailability:
+  - **Operator-declared:** `availability_read=False` → submitter sets
+    `NO_SOURCES` → rule STUCK in one cycle, no FTS dispatch.
+  - **Unexpected outage:** `xrd1` container stopped → rule eventually
+    reaches STUCK
 
-- [ ] **Source Replica Unavailability**
-  Stop the source storage container/pod mid-test (before FTS picks up the
-  job), submit a replication rule, run daemons, assert the rule enters
-  STUCK or FAILED and the lock reason contains a meaningful storage error
-  (not a silent timeout). Restore the service in fixture teardown.
-  - Tooling (compose): `docker stop compose-xrd1-1` / `docker start`.
-  - Tooling (k8s): `kubectl scale deploy/xrd1 --replicas=0` /
-    `--replicas=1`.
-  - Value: validates that Rucio surfaces actionable errors when a storage
-    endpoint disappears rather than hanging indefinitely; tests the
-    conveyor retry and stuck-rule detection path.
+- [x] **Token Expiry Mid-Transfer** (`test-rucio-token-expiry.py`)
+  Patches Keycloak `accessTokenLifespan` to 30s, submits a StoRM OIDC
+  transfer that outlasts the token, and asserts FINISHED — proving the
+  conveyor and FTS OIDC refresh path handle expiry transparently.
 
-## Phase 3: Scale & Observability (Optional)
+## Out of Scope for Phase 2
 
-These items are useful for capacity planning and operational insight but
-out of scope for a correctness testbed.
+The following failure modes were evaluated and intentionally excluded from
+the deterministic (run-once) test suite:
+
+- **Destination-side failure:** Higher complexity than source failure
+  (partial writes, cleanup semantics require storage-level inspection).
+  Source unavailability already validates the full error propagation path.
+- **Auth/permission mismatch (wrong scope/audience):** High value for a
+  dedicated OIDC hardening testbed but requires Keycloak client
+  configuration changes beyond realm-level patches.
+- **Conveyor/daemon failure:** The testbed runs daemons in `--run-once`
+  mode; persistent daemon availability is outside the scope of integration
+  testing. Covered in Phase 3.
+- **Partial transfer/retry semantics:** Requires large files or `tc netem`
+  network injection, which needs `NET_ADMIN` — incompatible with kind CI
+  runners.
+
+## Phase 3: Resilience & Chaos Validation (Optional)
+
+This phase validates non-deterministic system behavior under realistic
+operational conditions. Unlike Phase 2, tests here run with [long-running
+live daemons (Helm deployment)](https://github.com/rucio/helm-charts/tree/master/charts/rucio-daemons), real polling/queue progression, and
+time-based assertions against eventual consistency.
+
+- [ ] **Bulk transfer under daemon load:** Validate throughput and stability
+  under continuous submission pressure.
+- [ ] **Daemon restart / recovery behavior:** Restart conveyor/FTS
+  components mid-transfer and validate eventual recovery.
+- [ ] **Queue backlog + catch-up behavior:** Force backlog accumulation and
+  verify the system drains correctly.
+- [ ] **Token refresh under long-lived daemon execution:** Validate sustained
+  OIDC renewal across multiple polling cycles under a continuously running
+  worker. Distinct from Phase 2's token expiry test, which validates the
+  initial token fetch path in a single controlled cycle.
+
+## Phase 4: Scale & Observability (Optional)
+
+These are operational insights rather than correctness guarantees.
 
 - [ ] **Bulk Transfer Benchmarks:** Submit N-file jobs via the FTS Python
   client and measure throughput. Informational only.
-- [ ] **Prometheus / Grafana Integration:** FTS exposes metrics on port
-  8449; wire up a scrape config and a minimal dashboard for local
-  observability during development.
-- [ ] **Network Degradation Simulation:** `tc netem` on the Docker bridge
-  to simulate WAN latency and packet loss. Requires `NET_ADMIN` capability
-  — not compatible with kind CI runners without privilege escalation.
+- [ ] **Prometheus / Grafana Integration:** FTS exposes metrics on port 8449;
+  wire up a scrape config and a minimal dashboard for local observability
+  during development.
+- [ ] **Network Degradation Simulation:** `tc netem` on the Docker bridge to
+  simulate WAN latency and packet loss. Requires `NET_ADMIN` capability —
+  not compatible with kind CI runners without privilege escalation.
   Local-only option; not recommended for CI.

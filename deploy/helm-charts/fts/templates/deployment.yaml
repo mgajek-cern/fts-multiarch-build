@@ -156,6 +156,8 @@ spec:
             # Shared scripts directory (mirrors the compose bind of shared/scripts → /scripts)
             - name: scripts
               mountPath: /scripts
+            - name: tests
+              mountPath: /tests
             {{- if .Values.oidc.enabled }}
             # OIDC-specific configs override the image defaults
             - name: configs
@@ -226,6 +228,10 @@ spec:
         - name: scripts
           configMap:
             name: {{ .Values.scriptsConfigMap }}
+            defaultMode: 0755
+        - name: tests
+          configMap:
+            name: {{ .Values.testsConfigMap }}
             defaultMode: 0755
         - name: scripts-fts
           configMap:

@@ -47,6 +47,9 @@ scripts:
 patches:
   create: true
   configMapName: testbed-patches
+tests:
+  create: true
+  configMapName: testbed-tests
 
 # ===========================================================================
 # DATABASES

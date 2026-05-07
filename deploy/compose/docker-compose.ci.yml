@@ -24,6 +24,7 @@ services:
       - ${TESTBED_HOST_SOURCE}/certs/b96dc756.signing_policy:/etc/grid-security/certificates/b96dc756.signing_policy:ro
       - ${TESTBED_HOST_SOURCE}/certs/rucio_ca.pem:/etc/pki/ca-trust/source/anchors/rucio-ca.crt:ro
       - ${TESTBED_HOST_SOURCE}/shared/scripts:/scripts:ro
+      - ${TESTBED_HOST_SOURCE}/shared/tests:/tests:ro
       - ${TESTBED_HOST_SOURCE}/shared/config/fts/gfal2_xrootd_plugin.conf:/etc/gfal2.d/xrootd_plugin.conf:ro
       - ${TESTBED_HOST_SOURCE}/shared/scripts/fts/docker-entrypoint-gsi.sh:/docker-entrypoint.sh:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -223,6 +224,7 @@ services:
       - ${TESTBED_HOST_SOURCE}/certs/5fca1cb1.0:/etc/grid-security/certificates/5fca1cb1.0:ro
       - ${TESTBED_HOST_SOURCE}/certs/rucio_ca.pem:/etc/pki/ca-trust/source/anchors/rucio-ca.crt:ro
       - ${TESTBED_HOST_SOURCE}/shared/scripts:/scripts:ro
+      - ${TESTBED_HOST_SOURCE}/shared/tests:/tests:ro
       - ${TESTBED_HOST_SOURCE}/shared/config/fts/fts3config-oidc:/etc/fts3/fts3config:ro
       - ${TESTBED_HOST_SOURCE}/shared/config/fts/fts3restconfig-oidc:/etc/fts3/fts3restconfig:ro
       - ${TESTBED_HOST_SOURCE}/shared/config/fts/gfal2_http_plugin.conf:/etc/gfal2.d/http_plugin.conf:ro
@@ -561,6 +563,7 @@ services:
       - ${TESTBED_HOST_SOURCE}/shared/config/rucio/server.cfg:/opt/rucio/etc/rucio.cfg:ro
       - ${TESTBED_HOST_SOURCE}/shared/config/rucio/alembic.ini:/opt/rucio/etc/alembic.ini:ro
       - ${TESTBED_HOST_SOURCE}/shared/scripts:/scripts:ro
+      - ${TESTBED_HOST_SOURCE}/shared/tests:/tests:ro
       - ${TESTBED_HOST_SOURCE}/certs/hostcert_with_key.pem:/etc/grid-security/hostcert_with_key.pem:ro
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost/ping"]
@@ -601,6 +604,7 @@ services:
       - ${TESTBED_HOST_SOURCE}/certs/rucio_ca.pem:/etc/grid-security/certificates/rucio_ca.pem:ro
       - ${TESTBED_HOST_SOURCE}/certs/hostcert_with_key.pem:/etc/grid-security/hostcert_with_key.pem:ro
       - ${TESTBED_HOST_SOURCE}/shared/scripts:/scripts:ro
+      - ${TESTBED_HOST_SOURCE}/shared/tests:/tests:ro
       - ${TESTBED_HOST_SOURCE}/shared/patches/rucio/fts3.py:/usr/local/lib/python3.9/site-packages/rucio/transfertool/fts3.py:ro
       - ${TESTBED_HOST_SOURCE}/shared/patches/rucio/constants.py:/usr/local/lib/python3.9/site-packages/rucio/common/constants.py:ro
     healthcheck:
@@ -634,6 +638,7 @@ services:
       - ${TESTBED_HOST_SOURCE}/shared/config/rucio/userpass-client.cfg:/opt/rucio/etc/userpass-client.cfg:ro
       - ${TESTBED_HOST_SOURCE}/shared/config/rucio/userpass-client-for-rucio-oidc.cfg:/opt/rucio/etc/userpass-client-for-rucio-oidc.cfg:ro
       - ${TESTBED_HOST_SOURCE}/shared/scripts:/scripts:ro
+      - ${TESTBED_HOST_SOURCE}/shared/tests:/tests:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     command:
       - /bin/bash

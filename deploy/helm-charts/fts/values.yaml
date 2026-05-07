@@ -47,6 +47,8 @@ scriptsConfigMap: testbed-scripts
 # Exposed as a Secret (not a ConfigMap) so the same artifact can be reused by
 # the upstream rucio-server chart, which only supports secretMounts.
 patchesSecret: testbed-patches
+# Contains all test scripts
+testsConfigMap: testbed-tests
 
 env:
   - name: REQUESTS_CA_BUNDLE

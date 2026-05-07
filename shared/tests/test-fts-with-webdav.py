@@ -11,10 +11,10 @@ xrdfs, and network access to xrd1/xrd2/webdav1/webdav2.
 
 Typical invocations:
     # Compose
-    docker exec compose-fts-1 bash -c "pytest /scripts/test-fts-with-webdav.py"
+    docker exec compose-fts-1 bash -c "pytest /tests/test-fts-with-webdav.py"
 
     # Kubernetes
-    kubectl -n rucio-testbed exec deploy/fts -- bash -c "pytest /scripts/test-fts-with-webdav.py"
+    kubectl -n rucio-testbed exec deploy/fts -- bash -c "pytest /tests/test-fts-with-webdav.py"
 """
 
 import datetime

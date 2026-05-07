@@ -1,24 +1,27 @@
 """
 testbed.py — shared helpers for the rucio-storage-testbed pytest suites.
-
-Imported by all test-fts-with-*.py and test-rucio-transfers.py.
-Not a test file — pytest will not collect it.
-
-Usage:
-    from testbed import _run, xrd_seed, xrd_exists, svc_exec, poll_job, ...
 """
 
 import base64
 import json
 import logging
 import os
+import re
 import subprocess
 import tempfile
 import time
+import zlib
 
 import requests
 import urllib3
 from typing import Optional
+
+try:
+    from rucio.client import Client
+    from rucio.rse import rsemanager as rsemgr
+except ImportError:
+    Client = None
+    rsemgr = None
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -52,6 +55,8 @@ K8S_TARGETS: dict[str, tuple[str, Optional[str]]] = {
 # declared Content-Length.  The HTTP status code in stdout is correct; treat
 # exit 18 as success everywhere curl talks to FTS.
 CURL_OK_EXITS: set[int] = {0, 18}
+
+RUCIO = "rucio"
 
 
 # ── Subprocess ────────────────────────────────────────────────────────────
@@ -109,6 +114,164 @@ def svc_exec(svc: str, cmd: list, user: str = None) -> bytes:
             f"stderr: {result.stderr.decode(errors='replace')}"
         )
     return result.stdout
+
+
+def _xrd_service_manifest(svc: str, port: int = 1094) -> str:
+    """Minimal Service manifest matching what the Helm chart renders.
+
+    Used by svc_start to recreate Services that svc_stop deletes.
+    Restoring a freshly-rendered minimal manifest is more robust than
+    round-tripping `kubectl get svc -o yaml`, which contains many
+    runtime-assigned fields that need stripping.
+    """
+    return f"""\
+apiVersion: v1
+kind: Service
+metadata:
+  name: {svc}
+  namespace: {K8S_NAMESPACE}
+  labels:
+    app: xrootd
+    instance: {svc}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {port}
+      targetPort: xrootd
+      protocol: TCP
+      name: xrootd
+  selector:
+    app: xrootd
+    instance: {svc}
+"""
+
+
+def svc_stop(svc: str) -> None:
+    """Stop a service container/pod (runtime-agnostic).
+
+    compose: docker stop compose-<svc>-1
+    k8s:     scale to 0 (waits for pod gone) and DELETE the Service so
+             DNS returns NXDOMAIN. Without the Service delete, FTS sees
+             ECONNREFUSED from kube-proxy and the xrootd client retries
+             internally for ~6 min per attempt.
+    """
+    if RUNTIME == "compose":
+        _run(["docker", "stop", f"compose-{svc}-1"])
+    elif RUNTIME == "k8s":
+        kind, _ = K8S_TARGETS.get(svc, ("deploy", None))
+        _run(["kubectl", "-n", K8S_NAMESPACE, "scale", f"{kind}/{svc}", "--replicas=0"])
+        _wait_for_pod_deleted(svc)
+        # Best-effort delete; ignore if Service is already gone or RBAC denies.
+        subprocess.run(
+            [
+                "kubectl",
+                "-n",
+                K8S_NAMESPACE,
+                "delete",
+                "svc",
+                svc,
+                "--ignore-not-found=true",
+            ],
+            capture_output=True,
+            check=False,
+        )
+        log.info("  ✓ Deleted Service %s", svc)
+    else:
+        raise RuntimeError(f"Unknown RUNTIME: {RUNTIME!r}")
+    log.info("  ✓ Stopped %s", svc)
+
+
+def svc_start(svc: str) -> None:
+    """Start a previously-stopped service (runtime-agnostic).
+
+    compose: docker start
+    k8s:     re-create the Service from a minimal hardcoded manifest,
+             then scale deployment to 1 and wait until ready.
+    """
+    if RUNTIME == "compose":
+        _run(["docker", "start", f"compose-{svc}-1"])
+    elif RUNTIME == "k8s":
+        # Re-create Service first; idempotent via `kubectl apply`.
+        proc = subprocess.run(
+            ["kubectl", "-n", K8S_NAMESPACE, "apply", "-f", "-"],
+            input=_xrd_service_manifest(svc).encode(),
+            capture_output=True,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"Service {svc} restore failed: {proc.stderr.decode(errors='replace')}"
+            )
+        kind, _ = K8S_TARGETS.get(svc, ("deploy", None))
+        _run(["kubectl", "-n", K8S_NAMESPACE, "scale", f"{kind}/{svc}", "--replicas=1"])
+        _wait_for_replicas(svc, expected=1, ready=True)
+    else:
+        raise RuntimeError(f"Unknown RUNTIME: {RUNTIME!r}")
+    log.info("  ✓ Started %s", svc)
+
+
+def _wait_for_replicas(
+    svc: str,
+    expected: int,
+    ready: bool = False,
+    retries: int = 30,
+    interval: int = 2,
+) -> None:
+    kind, _ = K8S_TARGETS.get(svc, ("deploy", None))
+
+    # Simple rule: if we want it up, check 'readyReplicas'.
+    # If we want it down, 'replicas' (total count) must be 0.
+    field = "readyReplicas" if (ready and expected > 0) else "replicas"
+
+    for _ in range(retries):
+        result = _run(
+            [
+                "kubectl",
+                "-n",
+                K8S_NAMESPACE,
+                "get",
+                f"{kind}/{svc}",
+                "-o",
+                f"jsonpath={{.status.{field}}}",
+            ]
+        )
+
+        # If the output is empty, it means K8s removed the key (common at 0 replicas)
+        output = result.stdout.decode().strip()
+        current = int(output) if output else 0
+
+        if current == expected:
+            return
+        time.sleep(interval)
+
+    raise RuntimeError(f"{svc} failed to reach {expected} replicas")
+
+
+def _wait_for_pod_deleted(svc: str, retries: int = 60, interval: int = 2) -> None:
+    """Wait until no pods matching the deployment's selector remain.
+
+    Required because kubectl scale --replicas=0 returns once the spec is
+    updated, but the pod can stay in 'Terminating' phase serving traffic
+    for up to terminationGracePeriodSeconds. .status.replicas going to 0
+    only means 'no desired replicas', not 'no actual pod'.
+    """
+    for _ in range(retries):
+        result = _run(
+            [
+                "kubectl",
+                "-n",
+                K8S_NAMESPACE,
+                "get",
+                "pods",
+                "-l",
+                f"instance={svc}",
+                "-o",
+                "jsonpath={.items[*].metadata.name}",
+            ]
+        )
+        if not result.stdout.decode().strip():
+            return
+        time.sleep(interval)
+    raise RuntimeError(f"{svc} pods still present after {retries * interval}s")
 
 
 # ── XRootD helpers ────────────────────────────────────────────────────────
@@ -365,6 +528,80 @@ def decode_jwt_claims(token: str) -> dict:
     payload = token.split(".")[1]
     payload += "=" * (-len(payload) % 4)
     return json.loads(base64.urlsafe_b64decode(payload))
+
+
+def compute_pfn(client: "Client", rse: str, scope: str, name: str) -> str:
+    """Compute PFN via the Rucio RSE manager.
+
+    Requires the optional rucio-clients package.
+    """
+    if Client is None or rsemgr is None:
+        raise RuntimeError("compute_pfn requires the rucio-clients package")
+
+    rse_info = rsemgr.get_rse_info(rse=rse, vo=client.vo)
+
+    return list(
+        rsemgr.lfns2pfns(
+            rse_info,
+            [{"scope": scope, "name": name}],
+            operation="write",
+        ).values()
+    )[0]
+
+
+# ── Rucio transfer helpers ────────────────────────────────────────────────
+
+
+def prepare_dest_dir(storage_svc: str, fpath: str, owner: str) -> None:
+    script = (
+        f'mkdir -p "$(dirname {fpath})" && '
+        f'chown {owner}:{owner} "$(dirname {fpath})" 2>/dev/null || true'
+    )
+    svc_exec(storage_svc, ["sh", "-c", script], user="root")
+    log.info("  ✓ Destination dir ready on %s: %s", storage_svc, fpath)
+
+
+def pfn_to_local(rse: str, pfn: str) -> str:
+    """Convert a PFN URL into the path inside the storage container.
+
+    StoRM RSEs use a different mount layout than the generic XRootD/WebDAV
+    case; the storm-specific regex strips the protocol+host+port and
+    rewrites /data/ to /storage/data/.
+    """
+    if rse.startswith("STORM"):
+        return re.sub(r"^[a-z]+://storm[1-2]:[0-9]+/data/", "/storage/data/", pfn)
+    return re.sub(r"^/+", "/", re.sub(r"^[a-z]+://[^/]+", "", pfn))
+
+
+def seed(svc: str, fpath: str, owner: str) -> tuple:
+    script = (
+        "set -e; "
+        f'mkdir -p "$(dirname {fpath})"; '
+        f'printf "rucio-test\\n" > {fpath}; '
+        f"chown {owner}:{owner} {fpath} 2>/dev/null || true"
+    )
+    svc_exec(svc, ["sh", "-c", script], user="root")
+    raw = svc_exec(svc, ["cat", fpath])
+    return len(raw), "%08x" % (zlib.adler32(raw) & 0xFFFFFFFF)
+
+
+def run_daemons(svc: str = RUCIO) -> None:
+    for daemon in (
+        ["rucio-judge-evaluator", "--run-once"],
+        ["rucio-conveyor-submitter", "--run-once"],
+        ["rucio-conveyor-poller", "--run-once", "--older-than", "0"],
+        ["rucio-conveyor-finisher", "--run-once"],
+    ):
+        log.info("  → %s %s", svc, " ".join(daemon))
+        output = svc_exec(svc, daemon)
+
+        decoded_output = (output or b"").decode("utf-8", errors="replace")
+        for line in decoded_output.splitlines():
+            if any(
+                k in line.lower()
+                for k in ("warning", "error", "checksum", "failed", "submit")
+            ):
+                log.info("    | %s", line)
 
 
 # ── Health / readiness polling ────────────────────────────────────────────

@@ -123,9 +123,6 @@ jobs:
           [ "$METHOD" = "oauth2" ] || { echo "Expected method=oauth2, got: $METHOD"; exit 1; }
           echo "fts-oidc OIDC auth OK (method=$METHOD)"
 
-      # Tests — split between "always run" and "compose-only"
-      # See KNOWN_ISSUES.md for the rationale on the k8s skips.
-
       - name: XRootD TPC test (GSI)
         run: make test-xrootd-gsi
 
@@ -135,7 +132,6 @@ jobs:
       - name: WebDAV test
         run: make test-webdav
 
-      # OIDC-based tests run on both runtimes
       - name: StoRM WebDAV HTTP TPC test (OIDC token, no GSI)
         run: make test-storm
 
@@ -144,6 +140,9 @@ jobs:
 
       - name: Rucio E2E transfer test
         run: make test-rucio
+
+      - name: Failure-mode tests
+        run: make test-failure-modes
 
       # Diagnostics
       - name: Dump logs on failure (compose)

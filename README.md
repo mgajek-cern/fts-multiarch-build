@@ -13,7 +13,7 @@ Multi-architecture Rucio + FTS3 distributed storage testbed with XRootD (GSI and
 - **One-Command Topology Bootstrap:** Automated setup of the entire Rucio topology, distances and OIDC identity providers in one command.
 - **Resilient Test Suite:** Built-in validation of Rucio rule states, lock counts and Adler32 checksum streaming for minimal storage images.
 
-> Future work includes Dev Container integration, K8s migration and failure injection. See [ROADMAP.md](./ROADMAP.md).
+> See [ROADMAP.md](./ROADMAP.md) for planned future work.
 
 ## Quick start
 
@@ -33,8 +33,11 @@ RUNTIME=compose make bootstrap
 
 # 4. Run transfer tests
 RUNTIME=compose make test-rucio
-# Or run the full suite at once
-RUNTIME=compose make test-all
+# Or run all happy-path tests
+RUNTIME=compose make test-happy-pathes
+
+# 5. Run fast failure mode tests
+RUNTIME=compose make test-failure-modes
 ```
 
 ### Kubernetes
@@ -53,15 +56,16 @@ RUNTIME=k8s make bootstrap
 
 # 4. Run transfer tests
 RUNTIME=k8s make test-rucio
-# Or run the full suite at once
-RUNTIME=k8s make test-all
+# Or run all happy-path tests
+RUNTIME=k8s make test-happy-pathes
+
+# 5. Run fast failure mode tests
+RUNTIME=k8s make test-failure-modes
 ```
 
 ## Make targets
 
 ```bash
-make help
-
   help                       Show this help (default target)
 
 Setup
@@ -93,7 +97,9 @@ Tests
   test-storm                 StoRM WebDAV TPC test with OIDC tokens
   test-xrootd-oidc           XRootD TPC test with OIDC tokens (SciTokens)
   test-rucio                 Rucio E2E transfer test
-  test-all                   Run all tests (in series)
+  test-happy-pathes          Run all happy-path tests (in series)
+  test-failure-modes         Run fast failure mode tests
+  test-failure-modes-slow    Run slow failure mode tests (token expiry, etc.)
 
 Development
   lint                       Run pre-commit hooks on all files
@@ -145,7 +151,7 @@ sequenceDiagram
 
 > Token orchestration follows the design described in [Rucio Token Workflow Evolution](https://rucio.cern.ch/documentation/files/Rucio_Tokens_v0.1.pdf). Rucio acquires separate tokens for FTS authentication and for source/destination storage access, then bundles all three into the FTS submission. FTS is responsible only for refreshing the storage-scoped tokens during the transfer lifetime.
 
-**NOTE:** In the [test-rucio-transfers.py](./shared/scripts/test-rucio-transfers.py) script, we trigger the rule creation using `USERPASS` authentication to avoid the manual browser redirects required by a full OIDC login. Once the rule exists, the Rucio Conveyor daemons internally handle the OIDC token orchestration, fetching the necessary bearer tokens from Keycloak to submit the transfer job to FTS automatically.
+**NOTE:** In the [test-rucio-transfers.py](./shared/tests/test-rucio-transfers.py) script, we trigger the rule creation using `USERPASS` authentication to avoid the manual browser redirects required by a full OIDC login. Once the rule exists, the Rucio Conveyor daemons internally handle the OIDC token orchestration, fetching the necessary bearer tokens from Keycloak to submit the transfer job to FTS automatically.
 
 ### X.509 GSI Flow (Legacy/Standard)
 

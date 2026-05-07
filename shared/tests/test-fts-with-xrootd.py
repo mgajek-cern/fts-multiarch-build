@@ -9,10 +9,10 @@ and does not depend on the lifecycle postStart hook having run.
 
 Typical invocations:
     # Compose
-    docker exec compose-fts-1 bash -c "pytest /scripts/test-fts-with-xrootd.py"
+    docker exec compose-fts-1 bash -c "pytest /tests/test-fts-with-xrootd.py"
 
     # Kubernetes
-    kubectl -n rucio-testbed exec deploy/fts -- bash -c "pytest /scripts/test-fts-with-xrootd.py"
+    kubectl -n rucio-testbed exec deploy/fts -- bash -c "pytest /tests/test-fts-with-xrootd.py"
 """
 
 import datetime
