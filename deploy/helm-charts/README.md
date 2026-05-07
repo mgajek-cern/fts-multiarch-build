@@ -24,7 +24,7 @@ helm-charts/
 │       └── scripts-cm.yaml           # Bootstrap & entrypoint scripts
 │
 ├── fts/                          # Custom image (Dockerfile.fts) — GSI + OIDC FTS server
-├── xrootd/                       # rucio/test-xrootd (GSI)
+├── xrootd/                       # rucio/test-xrootd (GSI + SciTokens)
 ├── storm-webdav/                 # ghcr.io/italiangrid/storm-webdav
 ├── webdav/                       # rucio/test-webdav (Apache + WebDAV)
 ├── minio/                        # minio/minio + mc init Job
