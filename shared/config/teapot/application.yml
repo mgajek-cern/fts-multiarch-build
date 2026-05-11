@@ -1,0 +1,29 @@
+oauth:
+  enable-oidc: true
+  issuers:
+    - name: keycloak-rucio
+      issuer: "https://keycloak:8443/realms/rucio"
+
+storm:
+  authz:
+    policies:
+      - sa: data
+        actions:
+          - all
+        effect: permit
+        description: "Grant full access to any token from Keycloak"
+        paths:
+          - /**
+        principals:
+          - type: jwt-issuer
+            params:
+              iss: "https://keycloak:8443/realms/rucio"
+      - sa: data
+        actions:
+          - all
+        effect: deny
+        description: "Deny everyone else"
+        paths:
+          - /**
+        principals:
+          - type: anyone

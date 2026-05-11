@@ -43,15 +43,12 @@
       "directAccessGrantsEnabled": true,
       "fullScopeAllowed": true,
       "defaultClientScopes": [
-        "openid", "profile", "email", "wlcg", "fts",
+        "wlcg", "fts",
         "storage.read", "storage.modify",
         "storage.read:/data", "storage.modify:/data",
         "storage.read:/", "storage.modify:/",
-        "aud:fts-oidc",
-        "aud:xrd3",
-        "aud:xrd4",
-        "aud:storm1",
-        "aud:storm2"
+        "aud:fts-oidc", "aud:xrd3", "aud:xrd4",
+        "aud:storm1", "aud:storm2", "aud:teapot"
       ],
       "optionalClientScopes": [
         "offline_access"
@@ -81,6 +78,7 @@
   "users": [
     {
       "username": "randomaccount",
+      "id": "33ec5a95-4955-484d-9b21-818e19a8d749",
       "enabled": true,
       "email": "randomaccount@rucio",
       "emailVerified": true,
@@ -214,6 +212,27 @@
           "protocolMapper": "oidc-audience-mapper",
           "config": {
             "included.custom.audience": "https://storm2:8443",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "name": "aud:teapot",
+      "description": "Adds teapot to the token's aud claim for Teapot validation.",
+      "protocol": "openid-connect",
+      "attributes": {
+        "display.on.consent.screen": "false",
+        "include.in.token.scope": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "aud-teapot",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "teapot",
             "access.token.claim": "true",
             "id.token.claim": "false"
           }

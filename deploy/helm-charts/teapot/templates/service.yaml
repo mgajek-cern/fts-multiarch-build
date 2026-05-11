@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "teapot.fullname" . }}
+  labels:
+    app: {{ include "teapot.name" . }}
+    instance: {{ include "teapot.fullname" . }}
+    release: {{ .Release.Name }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: https
+      protocol: TCP
+      name: https
+  selector:
+    app: {{ include "teapot.name" . }}
+    instance: {{ include "teapot.fullname" . }}

@@ -1,0 +1,24 @@
+FROM --platform=linux/amd64 ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+ARG TEAPOT_VERSION=0.23.0
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    adduser curl ca-certificates openssl python3 \
+    openjdk-21-jre-headless sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL \
+    "https://github.com/interTwin-eu/teapot/releases/download/${TEAPOT_VERSION}/teapot_${TEAPOT_VERSION}-1_all.deb" \
+    -o /tmp/teapot.deb \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends /tmp/teapot.deb \
+    && rm /tmp/teapot.deb \
+    && rm -rf /var/lib/apt/lists/*
+
+# Allow root (the teapot.py process user) to sudo -u teapot without password
+RUN echo "root ALL=(teapot) NOPASSWD: ALL" >> /etc/sudoers
+
+EXPOSE 8081
+COPY shared/scripts/teapot/docker-entrypoint.sh /usr/local/bin/teapot-entrypoint.sh
+RUN chmod +x /usr/local/bin/teapot-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/teapot-entrypoint.sh"]

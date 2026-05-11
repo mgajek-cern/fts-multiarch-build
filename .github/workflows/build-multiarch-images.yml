@@ -11,6 +11,7 @@ jobs:
           - { name: fts,               file: ./deploy/compose/Dockerfile.fts,               image: test-fts }
           - { name: xrd,     file: ./deploy/compose/Dockerfile.xrd,     image: test-xrd }
           - { name: rucio-client-docker-kubectl, file: ./deploy/compose/Dockerfile.rucio-client-docker-kubectl, image: rucio-client-docker-kubectl }
+          - { name: teapot, file: ./deploy/compose/Dockerfile.teapot, image: teapot }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-qemu-action@v3

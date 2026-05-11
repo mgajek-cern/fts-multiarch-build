@@ -333,3 +333,12 @@ minio2:
 rucioClient:
   enabled: true
   fullnameOverride: rucio-client
+
+# ===========================================================================
+# Teapot pod
+# ===========================================================================
+
+teapot:
+  enabled: true
+  fullnameOverride: teapot
+  keycloakIssuer: "https://keycloak:8443/realms/rucio"

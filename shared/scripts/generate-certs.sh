@@ -64,6 +64,15 @@ generate_service_certs() {
         chmod 644 "$CERTS/${host}key.pem"
     done
 
+    write_ext_file /tmp/teapot-ext.cnf "teapot,localhost" server
+    mint_cert "teapot" "teapot" /tmp/teapot-ext.cnf
+    chmod 644 "$CERTS/teapotkey.pem"
+
+    # Storm-WebDAV localhost cert (for Teapot's internal Storm-WebDAV instance)
+    write_ext_file /tmp/storm-webdav-localhost-ext.cnf "localhost" server
+    mint_cert "storm-webdav-localhost" "localhost" /tmp/storm-webdav-localhost-ext.cnf
+    chmod 644 "$CERTS/storm-webdav-localhostkey.pem"
+
     # WebDAV nodes
     for host in webdav1 webdav2; do
         write_ext_file "/tmp/${host}-ext.cnf" "${host},localhost" server

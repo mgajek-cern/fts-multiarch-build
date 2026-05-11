@@ -1,0 +1,154 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "teapot.fullname" . }}
+  labels:
+    app: {{ include "teapot.name" . }}
+    instance: {{ include "teapot.fullname" . }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "teapot.name" . }}
+      instance: {{ include "teapot.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "teapot.name" . }}
+        instance: {{ include "teapot.fullname" . }}
+        release: {{ .Release.Name }}
+    spec:
+      securityContext:
+        fsGroup: 101
+      hostname: {{ include "teapot.fullname" . }}
+      initContainers:
+        - name: fix-data-permissions
+          image: busybox
+          command: ["sh", "-c", "chown -R 100:101 /data"]
+          volumeMounts:
+            - name: teapot-data
+              mountPath: /data
+      containers:
+        - name: teapot
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: SSL_CERT_FILE
+              value: /etc/ssl/certs/ca-certificates.crt
+            - name: REQUESTS_CA_BUNDLE
+              value: /etc/ssl/certs/ca-certificates.crt
+          ports:
+            - name: https
+              containerPort: 8081
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command:
+                - curl
+                - -sk
+                - https://localhost:8081/docs
+                - -o
+                - /dev/null
+                - -w
+                - "%{http_code}"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 10
+          volumeMounts:
+            # Teapot config
+            - name: configs
+              mountPath: /etc/teapot/config.ini
+              subPath: config.ini
+              readOnly: true
+            # User mapping
+            - name: configs
+              mountPath: /etc/teapot/user-mapping.csv
+              subPath: user-mapping.csv
+              readOnly: true
+            # Teapot TLS cert + key
+            - name: certs
+              mountPath: /var/lib/teapot/webdav/teapot.crt
+              subPath: {{ .Values.certFiles.teapotcert }}
+            - name: certs
+              mountPath: /var/lib/teapot/webdav/teapot.key
+              subPath: {{ .Values.certFiles.teapotkey }}
+            # Rucio CA (Teapot-testing CA + system trust)
+            - name: certs
+              mountPath: /var/lib/teapot/webdav/Teapot-testing.crt
+              subPath: {{ .Values.certFiles.ca }}
+            - name: certs
+              mountPath: /usr/local/share/ca-certificates/rucio-ca.crt
+              subPath: {{ .Values.certFiles.ca }}
+            # Storm-WebDAV internal TLS cert + key
+            - name: certs
+              mountPath: /etc/storm/webdav/localhost.crt
+              subPath: {{ .Values.certFiles.stormLocalcert }}
+            - name: certs
+              mountPath: /etc/storm/webdav/localhost.key
+              subPath: {{ .Values.certFiles.stormLocalkey }}
+            # Pre-rendered Storm-WebDAV application.yml and storage area
+            - name: configs
+              mountPath: /var/lib/teapot/user-teapot/config/application.yml
+              subPath: application.yml
+              readOnly: true
+            - name: configs
+              mountPath: /var/lib/teapot/user-teapot/sa.d/data.properties
+              subPath: teapot-data.properties
+              readOnly: true
+            # Patched teapot.py (Rosetta _get_proc fix)
+            - name: patches
+              mountPath: /usr/share/teapot/teapot.py
+              subPath: teapot--teapot.py
+              readOnly: true
+            # Data volume
+            - name: teapot-data
+              mountPath: /data
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: certs
+          secret:
+            secretName: {{ .Values.certsSecret }}
+            defaultMode: 0600
+            items:
+              - key: {{ .Values.certFiles.teapotcert }}
+                path: {{ .Values.certFiles.teapotcert }}
+                mode: 0600
+              - key: {{ .Values.certFiles.teapotkey }}
+                path: {{ .Values.certFiles.teapotkey }}
+                mode: 0600
+              - key: {{ .Values.certFiles.stormLocalcert }}
+                path: {{ .Values.certFiles.stormLocalcert }}
+                mode: 0644
+              - key: {{ .Values.certFiles.stormLocalkey }}
+                path: {{ .Values.certFiles.stormLocalkey }}
+                mode: 0644
+              - key: {{ .Values.certFiles.ca }}
+                path: {{ .Values.certFiles.ca }}
+                mode: 0644
+        - name: configs
+          configMap:
+            name: {{ .Values.configsConfigMap }}
+        - name: patches
+          secret:
+            secretName: {{ .Values.patchesSecret }}
+        - name: teapot-data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "teapot.fullname" . }}-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

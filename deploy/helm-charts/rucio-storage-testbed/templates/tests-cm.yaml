@@ -20,7 +20,9 @@ data:
   */}}
   {{- range $path, $_ := .Files.Glob "files/tests/**" }}
     {{- $name := base $path }}
+    {{- if and (not (contains "__pycache__" $path)) (not (hasSuffix ".pyc" $name)) }}
   {{ $name }}: |-
 {{ $.Files.Get $path | indent 4 }}
+    {{- end }}
   {{- end }}
 {{- end }}

@@ -75,6 +75,7 @@ Stack lifecycle (compose-*)
   compose-up                 Start the full stack in the background
   compose-down               Stop the stack and remove volumes
   compose-restart            Tear down and restart the stack
+  compose-rebuild            Rebuild and restart one or more services: make compose-rebuild SERVICES="teapot fts"
   compose-ps                 List running containers
   compose-logs               Tail logs from all services (Ctrl-C to exit)
   compose-logs-%             Tail logs from a single service, e.g. `make compose-logs-rucio`
@@ -100,6 +101,7 @@ Tests
   test-happy-pathes          Run all happy-path tests (in series)
   test-failure-modes         Run fast failure mode tests
   test-failure-modes-slow    Run slow failure mode tests (token expiry, etc.)
+  test-teapot                Teapot WebDAV test with OIDC tokens
 
 Development
   lint                       Run pre-commit hooks on all files

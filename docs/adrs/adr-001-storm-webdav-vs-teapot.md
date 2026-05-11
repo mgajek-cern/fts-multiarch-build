@@ -1,6 +1,6 @@
 ---
 status: accepted
-date: 2026-04-17
+date: 2026-05-10
 decision-makers: testbed maintainers
 consulted: /
 informed: /
@@ -42,6 +42,8 @@ Chosen option: **Keep direct StoRM WebDAV and document the Teapot migration path
 * Bad, because the testbed does not demonstrate per-user uid isolation, which could be relevant for future multi-tenant deployments
 * Bad, because adopting Teapot later requires a coordinated migration (estimated ~9 working days, see "More Information")
 * Neutral, because the testbed's cert-trust workarounds (self-signed CA bootstrap, davix/Neon system-trust updates, scheme compatibility patches) apply regardless of whether Teapot is used — they are driven by self-signed certs, not by the StoRM/Teapot choice
+* Update (2026-05-10): The "run both side-by-side" option was implemented as an additive experiment branch. storm1/storm2 direct TPC remains the canonical OIDC transfer path; Teapot is added as a parallel service demonstrating multi-tenancy. The ADR migration estimate of ~9 working days proved accurate. The single trusted_OP limitation and per-request
+JVM spawn cost (~30s cold start) were confirmed as real constraints. TPC via Teapot was not implemented — single-instance user mapping makes it a loopback transfer; two Teapot deployments would be required for a meaningful cross-node test.
 
 ### Confirmation
 

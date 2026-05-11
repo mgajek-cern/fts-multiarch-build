@@ -123,6 +123,9 @@ jobs:
           [ "$METHOD" = "oauth2" ] || { echo "Expected method=oauth2, got: $METHOD"; exit 1; }
           echo "fts-oidc OIDC auth OK (method=$METHOD)"
 
+      - name: WebDAV access test via Teapot with OIDC bearer tokens
+        run: make test-teapot
+
       - name: XRootD TPC test (GSI)
         run: make test-xrootd-gsi
 
@@ -148,10 +151,21 @@ jobs:
       - name: Dump logs on failure (compose)
         if: failure() && inputs.runtime == 'compose'
         run: |
-          for svc in fts fts-oidc xrd1 xrd2 rucio rucio-oidc keycloak webdav1 storm1 storm2 minio1; do
+          for svc in fts fts-oidc xrd1 xrd2 rucio rucio-oidc keycloak webdav1 storm1 storm2 minio1 teapot; do
             echo "=== $svc ===" && \
             docker compose -f ${{ inputs.compose_file }} logs $svc 2>/dev/null || true
           done
+          echo "=== teapot storm-webdav out ==="
+          docker exec compose-teapot-1 tail -100 \
+            /var/log/teapot/storm-webdav-server-user-teapot.out 2>/dev/null || true
+          echo "=== teapot storm-webdav err ==="
+          docker exec compose-teapot-1 tail -50 \
+            /var/log/teapot/storm-webdav-server-user-teapot.err 2>/dev/null || true
+          echo "=== teapot teapot.log ==="
+          docker exec compose-teapot-1 tail -100 \
+            /var/log/teapot/teapot.log 2>/dev/null || true
+          echo "=== teapot config.ini ==="
+          docker exec compose-teapot-1 cat /etc/teapot/config.ini 2>/dev/null || true
 
       - name: Dump logs on failure (k8s)
         if: failure() && inputs.runtime == 'k8s'
@@ -160,10 +174,26 @@ jobs:
           kubectl -n rucio-testbed get pods -o wide
           echo "=== Recent events ==="
           kubectl -n rucio-testbed get events --sort-by=.lastTimestamp | tail -50
-          for deploy in fts fts-oidc xrd1 xrd2 xrd3 xrd4 rucio rucio-oidc keycloak webdav1 storm1 storm2 minio1; do
+          for deploy in fts fts-oidc xrd1 xrd2 xrd3 xrd4 rucio rucio-oidc keycloak \
+                        webdav1 storm1 storm2 minio1 teapot; do
             echo "=== $deploy ==="
             kubectl -n rucio-testbed logs deploy/$deploy --tail=200 2>/dev/null || true
           done
+          echo "=== teapot storm-webdav out ==="
+          kubectl -n rucio-testbed exec deploy/teapot -- \
+            tail -100 /var/log/teapot/storm-webdav-server-user-teapot.out 2>/dev/null || true
+          echo "=== teapot storm-webdav err ==="
+          kubectl -n rucio-testbed exec deploy/teapot -- \
+            tail -50 /var/log/teapot/storm-webdav-server-user-teapot.err 2>/dev/null || true
+          echo "=== teapot teapot.log ==="
+          kubectl -n rucio-testbed exec deploy/teapot -- \
+            tail -100 /var/log/teapot/teapot.log 2>/dev/null || true
+          echo "=== teapot config.ini (active) ==="
+          kubectl -n rucio-testbed exec deploy/teapot -- \
+            cat /etc/teapot/config.ini 2>/dev/null || true
+          echo "=== testbed-configs config.ini key ==="
+          kubectl -n rucio-testbed get configmap testbed-configs \
+            -o jsonpath='{.data.config\.ini}' 2>/dev/null || true
 
       - name: Tear down (compose)
         if: always() && inputs.runtime == 'compose'

@@ -19,6 +19,12 @@
 - [x] **k8s GSI Fix:** Resolved five compounding issues preventing XRootD
   GSI TPC on Kubernetes (CA signing policies, file modes, static config,
   CRL level). Both runtimes now pass the full test suite.
+- [x] **Teapot WebDAV multi-tenancy service:** Adds Teapot as a WebDAV
+  proxy with per-user StoRM-WebDAV instances authenticated via Keycloak
+  OIDC tokens. Covers PROPFIND, PUT, GET, DELETE, and unauthenticated
+  rejection. TPC via Teapot deferred: single-instance mapping makes it
+  a loopback transfer rather than a meaningful cross-node test; requires
+  two Teapot deployments to validate properly.
 
 ## Phase 2: Failure Mode Validation
 

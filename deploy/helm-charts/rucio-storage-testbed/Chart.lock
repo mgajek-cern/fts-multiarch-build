@@ -53,5 +53,8 @@ dependencies:
 - name: rucio-client
   repository: file://../rucio-client
   version: 0.1.0
-digest: sha256:54ed3a4ceadca69a2cd9c8731149889d0781668b65a68e3d5f9f78a94009b427
-generated: "2026-05-03T06:58:07.110327924Z"
+- name: teapot
+  repository: file://../teapot
+  version: 0.1.0
+digest: sha256:493179e91c88015ecd2ee699d0b71aa5c6e67f6b7eacca169f8d820678ac18b9
+generated: "2026-05-10T17:27:06.034306799Z"

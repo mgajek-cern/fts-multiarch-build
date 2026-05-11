@@ -62,6 +62,11 @@ compose-down: ## Stop the stack and remove volumes
 .PHONY: compose-restart
 compose-restart: compose-down compose-up ## Tear down and restart the stack
 
+.PHONY: compose-rebuild
+compose-rebuild: ## Rebuild and restart one or more services: make compose-rebuild SERVICES="teapot fts"
+	$(COMPOSE) build $(SERVICES)
+	$(COMPOSE) up -d --no-deps --force-recreate $(SERVICES)
+
 .PHONY: compose-ps
 compose-ps: ## List running containers
 	$(COMPOSE) ps
@@ -156,6 +161,10 @@ test-failure-modes: ## Run fast failure mode tests
 .PHONY: test-failure-modes-slow
 test-failure-modes-slow: ## Run slow failure mode tests (token expiry, etc.)
 	$(EXEC_RUCIO) bash -c "RUNTIME=$(RUNTIME) pytest /tests/test-rucio-token-expiry.py"
+
+.PHONY: test-teapot
+test-teapot: ## Teapot WebDAV test with OIDC tokens
+	$(EXEC_RUCIO) bash -c "RUNTIME=$(RUNTIME) K8S_NAMESPACE=$(K8S_NAMESPACE) pytest /tests/test-teapot.py -v"
 
 ## Development
 

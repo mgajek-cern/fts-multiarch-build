@@ -113,3 +113,8 @@ dependencies:
     version: "0.1.0"
     repository: "file://../rucio-client"
     condition: rucioClient.enabled
+
+  - name: teapot
+    version: "0.1.0"
+    repository: "file://../teapot"
+    condition: teapot.enabled

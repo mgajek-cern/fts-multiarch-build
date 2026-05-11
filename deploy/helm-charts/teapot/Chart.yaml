@@ -1,0 +1,17 @@
+apiVersion: v2
+name: teapot
+description: >
+  Teapot WebDAV multi-tenancy proxy for the Rucio storage testbed.
+  Sits in front of per-user StoRM-WebDAV instances, authenticated via
+  Keycloak OIDC tokens. Requires linux/amd64 — Storm-WebDAV ships
+  x86-only Conscrypt native libraries.
+type: application
+version: 0.1.0
+appVersion: "0.23.0"
+keywords:
+  - rucio
+  - teapot
+  - webdav
+  - storm-webdav
+  - oidc
+  - multi-tenancy

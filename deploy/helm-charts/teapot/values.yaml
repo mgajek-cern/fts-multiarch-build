@@ -1,0 +1,39 @@
+image:
+  repository: mgajekcern/teapot
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+fullnameOverride: "teapot"
+
+service:
+  type: ClusterIP
+  port: 8081
+
+# Shared artifacts (managed by umbrella chart)
+certsSecret: testbed-certs
+configsConfigMap: testbed-configs
+scriptsConfigMap: testbed-scripts
+patchesSecret: testbed-patches
+
+certFiles:
+  teapotcert: teapotcert.pem
+  teapotkey: teapotkey.pem
+  stormLocalcert: storm-webdav-localhostcert.pem
+  stormLocalkey: storm-webdav-localhostkey.pem
+  ca: rucio_ca.pem
+
+# User identity mapping — sub claim → local username
+# Must match the Keycloak user's UUID (pinned in realm.json)
+userMapping: "teapot 33ec5a95-4955-484d-9b21-818e19a8d749"
+
+keycloakIssuer: "https://keycloak:8443/realms/rucio"
+
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClass: ""
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
