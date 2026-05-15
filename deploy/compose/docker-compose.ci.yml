@@ -302,6 +302,32 @@ services:
       timeout: 5s
       retries: 5
 
+  minio1-tls:
+    image: nginx:alpine
+    hostname: minio1-tls
+    networks:
+      - rucio-storage-testbed
+    volumes:
+      - ${TESTBED_HOST_SOURCE}/certs/minio1cert.pem:/etc/nginx/certs/public.crt:ro
+      - ${TESTBED_HOST_SOURCE}/certs/minio1key.pem:/etc/nginx/certs/private.key:ro
+      - ${TESTBED_HOST_SOURCE}/shared/config/nginx/minio1-tls.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      minio1:
+        condition: service_healthy
+
+  minio2-tls:
+    image: nginx:alpine
+    hostname: minio2-tls
+    networks:
+      - rucio-storage-testbed
+    volumes:
+      - ${TESTBED_HOST_SOURCE}/certs/minio2cert.pem:/etc/nginx/certs/public.crt:ro
+      - ${TESTBED_HOST_SOURCE}/certs/minio2key.pem:/etc/nginx/certs/private.key:ro
+      - ${TESTBED_HOST_SOURCE}/shared/config/nginx/minio2-tls.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      minio2:
+        condition: service_healthy
+
   minio1-init:
     image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
     depends_on:
@@ -645,6 +671,7 @@ services:
       - ${TESTBED_HOST_SOURCE}/shared/scripts:/scripts:ro
       - ${TESTBED_HOST_SOURCE}/shared/tests:/tests:ro
       - ${TESTBED_HOST_SOURCE}/certs/hostcert_with_key.pem:/etc/grid-security/hostcert_with_key.pem:ro
+      - ${TESTBED_HOST_SOURCE}/shared/patches/rucio/constants.py:/usr/local/lib/python3.9/site-packages/rucio/common/constants.py:ro
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost/ping"]
       interval: 10s

@@ -88,6 +88,13 @@ generate_service_certs() {
     write_ext_file /tmp/keycloak-ext.cnf "keycloak,localhost" server
     mint_cert "keycloak" "keycloak" /tmp/keycloak-ext.cnf
     chmod 644 "$CERTS/keycloakkey.pem"
+
+    # MinIO nodes (TLS required for S3 pre-signed URL path)
+    for host in minio1 minio2; do
+        write_ext_file "/tmp/${host}-ext.cnf" "${host},${host}-tls,localhost" server
+        mint_cert "${host}" "${host}" "/tmp/${host}-ext.cnf"
+        chmod 644 "$CERTS/${host}key.pem"
+    done
 }
 
 setup_trust_anchors() {

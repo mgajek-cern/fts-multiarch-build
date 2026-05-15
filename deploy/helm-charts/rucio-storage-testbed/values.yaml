@@ -45,6 +45,10 @@ certs:
     b96dc756.0: ""
     5fca1cb1.signing_policy: ""
     b96dc756.signing_policy: ""
+    minio1cert.pem: ""
+    minio1key.pem: ""
+    minio2cert.pem: ""
+    minio2key.pem: ""
 
 configs:
   create: true
@@ -153,6 +157,12 @@ rucio:
       volumeName: rucio-cfg-alembic
       mountPath: /opt/rucio/etc/alembic.ini
       subPath: alembic.ini
+
+    # Python patches
+    - secretFullName: testbed-patches
+      volumeName: constants-patch
+      mountPath: /usr/local/lib/python3.9/site-packages/rucio/common/constants.py
+      subPath: rucio--constants.py
 
 "rucio-oidc":
   enabled: true

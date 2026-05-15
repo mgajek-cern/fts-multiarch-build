@@ -2,10 +2,14 @@
 """
 test-rucio-transfers.py — Rucio E2E transfer tests using the Python client.
 
-Covers three scenarios:
-  - XRootD GSI   (XRD1  → XRD2,   rucio    instance, X.509 cert auth)
-  - StoRM OIDC   (STORM1 → STORM2, rucio-oidc instance, bearer tokens)
-  - XRootD OIDC  (XRD3  → XRD4,   rucio-oidc instance, SciTokens)
+Covers:
+  - XRootD GSI    (XRD1   → XRD2,   rucio     instance, X.509 cert auth)
+  - StoRM OIDC    (STORM1 → STORM2, rucio-oidc instance, bearer tokens)
+  - XRootD OIDC   (XRD3   → XRD4,   rucio-oidc instance, SciTokens)
+  - Teapot OIDC   (TEAPOT1→ TEAPOT2,rucio-oidc instance, bearer tokens)
+  - S3 → S3       (MINIO1 → MINIO2, rucio     instance, signed URLs)
+  - S3 → XRootD   (MINIO1 → XRD2,   rucio     instance, signed URLs)
+  - XRootD → S3   (XRD1   → MINIO1, rucio     instance, signed URLs)
 
 Runtime-agnostic: respects $RUNTIME (compose | k8s, default compose).
 
@@ -59,9 +63,28 @@ TEAPOT1, TEAPOT2 = "teapot1", "teapot2"
 TEAPOT1_URL = "https://teapot1:8081"
 TEAPOT2_URL = "https://teapot2:8081"
 KEYCLOAK_TOKEN_URL = "https://keycloak:8443/realms/rucio/protocol/openid-connect/token"
+MINIO1, MINIO2 = "minio1", "minio2"
+MINIO_PORT = 9000
+MINIO_USER = "minioadmin"
+MINIO_PASSWORD = "minioadmin"
+MINIO_BUCKET = "fts-test"
 
 CFG_STD = "/opt/rucio/etc/userpass-client.cfg"
 CFG_OIDC = "/opt/rucio/etc/userpass-client-for-rucio-oidc.cfg"
+
+
+# ── Helpers ────────────────────────────────────────────────────────
+def minio_seed(bucket: str, key: str, content: str) -> tuple:
+    """Seed a file into MinIO via mc from inside the minio1 container."""
+    script = (
+        f"mc alias set local http://localhost:9000 "
+        f"{MINIO_USER} {MINIO_PASSWORD} --quiet 2>/dev/null; "
+        f"mc mb --ignore-existing local/{bucket} 2>/dev/null; "
+        f"printf '{content}' | mc pipe local/{bucket}/{key}"
+    )
+    svc_exec(MINIO1, ["bash", "-c", script])
+    raw = content.encode()
+    return len(raw), "%08x" % (zlib.adler32(raw) & 0xFFFFFFFF)
 
 
 # ── Rucio client factory ───────────────────────────────────────────────────
@@ -505,3 +528,72 @@ def test_teapot_oidc(client_oidc, teapot_token, teapots_ready):
         token=teapot_token,
         label="Teapot OIDC",
     )
+
+
+def test_s3_minio1_to_minio2(client_std, fts_proxy):
+    """S3 TPC: MINIO1 → MINIO2 via rucio (signed-URL path)."""
+    name = f"s3-{int(time.time())}"
+    scope = "ddmlab"
+
+    log.info("[ Test: S3 MINIO1 → MINIO2 ]")
+
+    src_pfn = compute_pfn(client_std, "MINIO1", scope, name)
+    dst_pfn = compute_pfn(client_std, "MINIO2", scope, name)
+    log.info("  src PFN: %s", src_pfn)
+    log.info("  dst PFN: %s", dst_pfn)
+
+    # PFN path under the bucket prefix: strip https://minio1:9000/fts-test
+    key = urlparse(src_pfn).path.lstrip("/fts-test/")
+    size, adler = minio_seed(MINIO_BUCKET, key, "rucio-s3-test\n")
+
+    register_replica(client_std, "MINIO1", scope, name, src_pfn, size, adler)
+    rule_id = add_rule(client_std, scope, name, "MINIO2")
+    run_daemons(RUCIO)
+    validate_rule(client_std, rule_id, "S3 MINIO1→MINIO2", RUCIO)
+
+
+def test_s3_minio1_to_xrd2(client_std, fts_proxy):
+    """S3 → XRootD TPC: MINIO1 → XRD2 via rucio."""
+    name = f"s3-xrd-{int(time.time())}"
+    scope = "ddmlab"
+
+    log.info("[ Test: S3 MINIO1 → XRD2 ]")
+
+    src_pfn = compute_pfn(client_std, "MINIO1", scope, name)
+    dst_pfn = compute_pfn(client_std, "XRD2", scope, name)
+    log.info("  src PFN: %s", src_pfn)
+    log.info("  dst PFN: %s", dst_pfn)
+
+    key = urlparse(src_pfn).path.lstrip("/fts-test/")
+    size, adler = minio_seed(MINIO_BUCKET, key, "rucio-s3-test\n")
+
+    register_replica(client_std, "MINIO1", scope, name, src_pfn, size, adler)
+
+    dst_local = pfn_to_local("XRD2", dst_pfn)
+    prepare_dest_dir(XRD2, dst_local, "xrootd")
+
+    rule_id = add_rule(client_std, scope, name, "XRD2")
+    run_daemons(RUCIO)
+    validate_rule(client_std, rule_id, "S3 MINIO1→XRD2", RUCIO)
+
+
+def test_s3_xrd1_to_minio1(client_std, fts_proxy):
+    """XRootD → S3 TPC: XRD1 → MINIO1 via rucio."""
+    name = f"xrd-s3-{int(time.time())}"
+    scope = "ddmlab"
+
+    log.info("[ Test: XRD1 → S3 MINIO1 ]")
+
+    src_pfn = compute_pfn(client_std, "XRD1", scope, name)
+    dst_pfn = compute_pfn(client_std, "MINIO1", scope, name)
+    log.info("  src PFN: %s", src_pfn)
+    log.info("  dst PFN: %s", dst_pfn)
+
+    src_local = pfn_to_local("XRD1", src_pfn)
+    size, adler = seed(XRD1, src_local, "xrootd")
+
+    register_replica(client_std, "XRD1", scope, name, src_pfn, size, adler)
+
+    rule_id = add_rule(client_std, scope, name, "MINIO1")
+    run_daemons(RUCIO)
+    validate_rule(client_std, rule_id, "XRD1→S3 MINIO1", RUCIO)

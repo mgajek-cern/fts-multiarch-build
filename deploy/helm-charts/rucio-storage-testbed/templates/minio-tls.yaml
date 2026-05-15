@@ -1,0 +1,118 @@
+{{- if .Values.minio1.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio1-tls
+  labels:
+    app.kubernetes.io/name: minio1-tls
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio1-tls
+  template:
+    metadata:
+      labels:
+        app: minio1-tls
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 9000
+          volumeMounts:
+            - name: certs
+              mountPath: /etc/nginx/certs
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: minio1-tls.conf
+      volumes:
+        - name: certs
+          secret:
+            secretName: {{ .Values.certs.secretName }}
+            items:
+              - key: minio1cert.pem
+                path: public.crt
+              - key: minio1key.pem
+                path: private.key
+        - name: nginx-conf
+          configMap:
+            name: {{ .Values.configs.configMapName }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio1-tls
+  labels:
+    app.kubernetes.io/name: minio1-tls
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9000
+      targetPort: 9000
+      name: https
+  selector:
+    app: minio1-tls
+{{- end }}
+{{- if .Values.minio2.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio2-tls
+  labels:
+    app.kubernetes.io/name: minio2-tls
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio2-tls
+  template:
+    metadata:
+      labels:
+        app: minio2-tls
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 9000
+          volumeMounts:
+            - name: certs
+              mountPath: /etc/nginx/certs
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: minio2-tls.conf
+      volumes:
+        - name: certs
+          secret:
+            secretName: {{ .Values.certs.secretName }}
+            items:
+              - key: minio2cert.pem
+                path: public.crt
+              - key: minio2key.pem
+                path: private.key
+        - name: nginx-conf
+          configMap:
+            name: {{ .Values.configs.configMapName }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio2-tls
+  labels:
+    app.kubernetes.io/name: minio2-tls
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9000
+      targetPort: 9000
+      name: https
+  selector:
+    app: minio2-tls
+{{- end }}

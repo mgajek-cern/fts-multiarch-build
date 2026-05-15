@@ -275,6 +275,102 @@ configure_rses() {
     fi
 }
 
+# ── S3 / MinIO RSE Configuration ──────────────────────────────────────────
+
+_register_minio_rses() {
+    local cmd=$1
+    local extra_accounts=${2:-}
+
+    for rse in MINIO1 MINIO2; do
+        local host
+        host=$(echo "$rse" | tr '[:upper:]' '[:lower:]')
+        $cmd rse add "$rse" || true
+        $cmd rse set-attribute --rse "$rse" --key fts              --value "$FTS"
+        $cmd rse set-attribute --rse "$rse" --key sign_url         --value s3
+        $cmd rse set-attribute --rse "$rse" --key skip_upload_stat --value True
+        $cmd rse set-attribute --rse "$rse" --key verify_checksum  --value False
+        $cmd rse set-attribute --rse "$rse" --key strict_copy      --value True
+        $cmd rse set-attribute --rse "$rse" --key s3_url_style     --value path
+        $cmd rse add-protocol "$rse" \
+            --scheme https --hostname "$host-tls" --port 9000 \
+            --prefix /fts-test \
+            --impl rucio.rse.protocols.gfal.Default \
+            --domain-json '{"wan":{"read":1,"write":1,"delete":1,"third_party_copy_read":1,"third_party_copy_write":1},"lan":{"read":1,"write":1,"delete":1}}'
+        $cmd account set-limits ddmlab "$rse" -1 || true
+        $cmd account set-limits root   "$rse" -1 || true
+        [[ -n "$extra_accounts" ]] && \
+            $cmd account set-limits "$extra_accounts" "$rse" -1 || true
+    done
+
+    $cmd rse add-distance MINIO1 MINIO2 --distance 1 || true
+    $cmd rse add-distance MINIO2 MINIO1 --distance 1 || true
+    $cmd rse add-distance XRD1   MINIO1 --distance 1 || true
+    $cmd rse add-distance MINIO1 XRD2   --distance 1 || true
+    $cmd rse add-distance XRD2   MINIO1 --distance 1 || true
+    $cmd rse add-distance MINIO1 XRD1   --distance 1 || true
+}
+
+_write_rse_accounts() {
+    local svc=$1
+    local m1_id m2_id tmp_cfg
+    m1_id=$(_exec "$svc" python3 -c "
+from rucio.core.rse import get_rse_id; print(get_rse_id('MINIO1'))")
+    m2_id=$(_exec "$svc" python3 -c "
+from rucio.core.rse import get_rse_id; print(get_rse_id('MINIO2'))")
+
+    tmp_cfg=$(mktemp)
+    cat > "$tmp_cfg" << ACCOUNTS
+{
+    "${m1_id}": {
+        "access_key": "minioadmin",
+        "secret_key": "minioadmin",
+        "signature_version": "s3v4",
+        "region": "us-east-1"
+    },
+    "${m2_id}": {
+        "access_key": "minioadmin",
+        "secret_key": "minioadmin",
+        "signature_version": "s3v4",
+        "region": "us-east-1"
+    }
+}
+ACCOUNTS
+
+    case "$RUNTIME" in
+        compose)
+            docker cp "$tmp_cfg" "compose-${svc}-1:/opt/rucio/etc/rse-accounts.cfg"
+            ;;
+        k8s)
+            local container=""
+            [[ "$svc" == "rucio" || "$svc" == "rucio-oidc" ]] && container="-c $svc"
+            local pod
+            pod=$(kubectl -n "$K8S_NAMESPACE" get pods -l "app.kubernetes.io/name=${svc}" \
+                -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || \
+                kubectl -n "$K8S_NAMESPACE" get pods -l "app=${svc}" \
+                -o jsonpath='{.items[0].metadata.name}')
+            kubectl -n "$K8S_NAMESPACE" cp "$tmp_cfg" \
+                "${pod}:/opt/rucio/etc/rse-accounts.cfg" $container
+            ;;
+    esac
+
+    rm -f "$tmp_cfg"
+    echo "  ✓ rse-accounts.cfg written to $svc (MINIO1=$m1_id MINIO2=$m2_id)"
+}
+
+setup_s3_rses() {
+    echo "=== Configuring S3/MinIO RSEs ==="
+
+    # ── Per-instance RSE registration ──────────────────────────────────────
+    _register_minio_rses "ra"
+    _register_minio_rses "ra_oidc" "randomaccount"
+
+    # ── rse-accounts.cfg ───────────────────────────────────────────────────
+    echo "  Writing rse-accounts.cfg..."
+
+    _write_rse_accounts "rucio"
+    _write_rse_accounts "rucio-oidc"
+}
+
 # ── FTS & Delegation ───────────────────────────────────────────────────────
 
 setup_fts_oidc_provider() {
@@ -348,6 +444,7 @@ main() {
     setup_accounts_and_identities
     configure_rses "ra"      "$FTS"      "Rucio-Classic"
     configure_rses "ra_oidc" "$FTS"      "Rucio-OIDC"
+    setup_s3_rses
     setup_scopes_and_quotas
     setup_fts_oidc_provider
     restart_storm_nodes "Final JWKS Sync"

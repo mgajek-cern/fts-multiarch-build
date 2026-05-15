@@ -21,18 +21,10 @@ adopting the chart in shared or production-adjacent clusters. All
 ServiceAccounts are namespace-scoped (Role/RoleBinding, not ClusterRole), so
 blast radius is limited to the testbed namespace.
 
-### Docker socket mounted into fts and fts-oidc containers (compose)
+### Docker socket mounted into rucio-client, fts and fts-oidc containers (compose)
 
-The compose stack mounts `/var/run/docker.sock` into the `fts` and `fts-oidc`
+The compose stack mounts `/var/run/docker.sock` into the `rucio-client`, `fts` and `fts-oidc`
 containers so that `svc_exec` helpers in the test suite can reach sibling
 containers. This grants root-equivalent access to the Docker daemon on the
 host. Acceptable for a local development testbed; remove the bind mount before
 running in any shared environment.
-
-## Open Issues
-
-### S3 / MinIO: HTTP 400 on VO grant (k8s)
-
-**Status:** Resolved. Fixed by using `vo_name: "*"` wildcard instead of
-dynamically fetching the VO from `/whoami`. See `test-fts-with-s3.py` and the
-`fix(k8s/s3)` commit for details.

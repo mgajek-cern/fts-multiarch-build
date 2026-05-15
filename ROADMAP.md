@@ -25,8 +25,8 @@
   unauthenticated rejection, FTS TPC between instances, and full Rucio
   conveyor → fts-oidc → Teapot TPC (TEAPOT1 → TEAPOT2). Requires openid
   scope in client-credentials grants for flaat /userinfo resolution.
-- [ ] **Rucio E2E transfers with S3 source:** Extend test-rucio-transfers.py
-  with S3/MinIO RSE pairs analogous to test-fts-with-s3.py, covering the
+- [x] **Rucio E2E transfers with S3 source:** Extend `test-rucio-transfers.py`
+  with S3/MinIO RSE pairs analogous to `test-fts-with-s3.py`, covering the
   signed-URL path through the Rucio conveyor.
 - [ ] **VO-based Teapot mapping with eduperson_entitlements:** Configure
   Keycloak to issue eduperson_entitlement claims alongside wlcg.groups and
