@@ -449,7 +449,7 @@ main() {
     setup_fts_oidc_provider
     restart_storm_nodes "Final JWKS Sync"
 
-    echo -e "\n=== Bootstrap Complete ==="
+    echo -e "\n=== Initialization Complete ==="
 }
 
 main

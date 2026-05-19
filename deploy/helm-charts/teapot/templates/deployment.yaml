@@ -97,11 +97,6 @@ spec:
             - name: trust
               mountPath: /etc/grid-security/certificates
               readOnly: true
-            # JVM truststore — required for outbound HTTPS (OIDC/JWKS fetching)
-            - name: cacerts
-              mountPath: /opt/java/openjdk/lib/security/cacerts
-              subPath: storm-cacerts
-              readOnly: true
             # Pre-rendered Storm-WebDAV application.yml and storage area
             - name: configs
               mountPath: /var/lib/teapot/user-teapot/config/application.yml
@@ -155,13 +150,6 @@ spec:
                 path: 5fca1cb1.signing_policy
               - key: b96dc756.signing_policy
                 path: b96dc756.signing_policy
-        # JVM truststore with testbed CA imported
-        - name: cacerts
-          secret:
-            secretName: {{ .Values.trustSecret }}
-            items:
-              - key: storm-cacerts
-                path: storm-cacerts
         - name: configs
           configMap:
             name: {{ .Values.configsConfigMap }}

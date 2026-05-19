@@ -28,8 +28,8 @@ make certs
 # 2. Start the stack
 make compose-up
 
-# 3. Bootstrap Rucio
-RUNTIME=compose make bootstrap
+# 3. Initialize Rucio Testbed
+RUNTIME=compose make init
 
 # 4. Run transfer tests
 RUNTIME=compose make test-rucio
@@ -51,8 +51,8 @@ make certs
 # 2. Install the Helm chart
 make helm-install
 
-# 3. Bootstrap Rucio
-RUNTIME=k8s make bootstrap
+# 3. Initialize Rucio Testbed
+RUNTIME=k8s make init
 
 # 4. Run transfer tests
 RUNTIME=k8s make test-rucio
@@ -70,6 +70,7 @@ RUNTIME=k8s make test-failure-modes
 
 Setup
   certs                      Generate certificates (e.g. CA, hosts, StoRM trust anchors, JVM cacerts)
+  init                       Initialize Rucio Testbed (uses $RUNTIME — set RUNTIME=k8s for kubernetes)
 
 Stack lifecycle (compose-*)
   compose-up                 Start the full stack in the background
@@ -80,7 +81,6 @@ Stack lifecycle (compose-*)
   compose-logs               Tail logs from all services (Ctrl-C to exit)
   compose-logs-%             Tail logs from a single service, e.g. `make compose-logs-rucio`
   compose-build              Build local Docker images (e.g. fts, xrd, rucio-client-docker-kubectl, teapot)
-  bootstrap                  Bootstrap Rucio (uses $RUNTIME — set RUNTIME=k8s for kubernetes)
 
 Helm / Kubernetes lifecycle (helm-*, k8s-*)
   helm-lint                  Lint the umbrella chart

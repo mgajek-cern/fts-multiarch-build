@@ -63,7 +63,7 @@ jobs:
 
       # Common: bootstrap
       - name: Bootstrap Rucio (seeds RSEs + token provider + restarts storm/fts-oidc)
-        run: make bootstrap
+        run: make init
 
       - name: Wait for fts-oidc (compose)
         if: inputs.runtime == 'compose'

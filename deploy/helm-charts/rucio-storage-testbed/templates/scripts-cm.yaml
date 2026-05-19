@@ -6,7 +6,7 @@
 
   Each per-directory ConfigMap is named "<base-configMapName>-<dir>" and its
   keys are just the filenames within that directory. The top-level files
-  (bootstrap-testbed.sh, generate-certs.sh, the test-*.sh scripts…) go into
+  (init-testbed.sh, generate-certs.sh, the test-*.sh scripts…) go into
   the base-named ConfigMap.
 
   Consumers:

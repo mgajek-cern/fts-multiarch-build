@@ -49,9 +49,9 @@ help: ## Show this help (default target)
 certs: ## Generate certificates (e.g. CA, hosts, StoRM trust anchors, JVM cacerts)
 	./shared/scripts/generate-certs.sh
 
-.PHONY: bootstrap
-bootstrap: ## Bootstrap Rucio (uses $RUNTIME — set RUNTIME=k8s for kubernetes)
-	./shared/scripts/bootstrap-testbed.sh
+.PHONY: init
+init: ## Initialize Rucio Testbed (uses $RUNTIME — set RUNTIME=k8s for kubernetes)
+	./shared/scripts/init-testbed.sh
 
 ## Stack lifecycle (compose-*)
 

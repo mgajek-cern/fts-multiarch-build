@@ -28,7 +28,7 @@ env:
 certsSecret: testbed-certs
 # Contains userpass-client.cfg and userpass-client-for-rucio-oidc.cfg
 configsConfigMap: testbed-configs
-# Contains general scripts (bootstrap-testbed.sh, etc.)
+# Contains general scripts (init-testbed.sh, etc.)
 scriptsConfigMap: testbed-scripts
 # Contains all test scripts
 testsConfigMap: testbed-tests
