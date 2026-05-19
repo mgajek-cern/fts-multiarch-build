@@ -152,7 +152,7 @@ sequenceDiagram
     SE-->>FTS: Transfer Started
 ```
 
-> Token orchestration follows the design described in [Rucio Token Workflow Evolution](https://rucio.cern.ch/documentation/files/Rucio_Tokens_v0.1.pdf). Rucio acquires separate tokens for FTS authentication and for source/destination storage access, then bundles all three into the FTS submission. FTS is responsible only for refreshing the storage-scoped tokens during the transfer lifetime.
+> Token orchestration follows the design described in [Rucio Token Workflow Evolution](https://rucio.cern.ch/documentation/files/Rucio_Tokens_v0.1.pdf). Rucio acquires separate tokens for FTS authentication and for source/destination storage access, then bundles all three into the FTS submission. FTS is responsible for refreshing the storage-scoped tokens during the transfer lifetime.
 
 **NOTE:** In the [test-rucio-transfers.py](./shared/tests/test-rucio-transfers.py) script, we trigger the rule creation using `USERPASS` authentication to avoid the manual browser redirects required by a full OIDC login. Once the rule exists, the Rucio Conveyor daemons internally handle the OIDC token orchestration, fetching the necessary bearer tokens from Keycloak to submit the transfer job to FTS automatically.
 
