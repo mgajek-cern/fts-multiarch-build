@@ -49,6 +49,10 @@ help: ## Show this help (default target)
 certs: ## Generate certificates (e.g. CA, hosts, StoRM trust anchors, JVM cacerts)
 	./shared/scripts/generate-certs.sh
 
+.PHONY: bootstrap
+bootstrap: ## Bootstrap Rucio (uses $RUNTIME — set RUNTIME=k8s for kubernetes)
+	./shared/scripts/bootstrap-testbed.sh
+
 ## Stack lifecycle (compose-*)
 
 .PHONY: compose-up
@@ -82,10 +86,6 @@ compose-logs-%: ## Tail logs from a single service, e.g. `make compose-logs-ruci
 .PHONY: compose-build
 compose-build: ## Build local Docker images (e.g. fts, xrd, rucio-client-docker-kubectl, teapot)
 	$(COMPOSE) build
-
-.PHONY: bootstrap
-bootstrap: ## Bootstrap Rucio (uses $RUNTIME — set RUNTIME=k8s for kubernetes)
-	./shared/scripts/bootstrap-testbed.sh
 
 ## Helm / Kubernetes lifecycle (helm-*, k8s-*)
 
