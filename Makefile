@@ -53,7 +53,7 @@ certs: ## Generate certificates (e.g. CA, hosts, StoRM trust anchors, JVM cacert
 init: ## Initialize Rucio Testbed (uses $RUNTIME — set RUNTIME=k8s for kubernetes)
 	./shared/scripts/init-testbed.sh
 
-## Stack lifecycle (compose-*)
+## Docker Compose lifecycle (compose-*)
 
 .PHONY: compose-up
 compose-up: ## Start the full stack in the background

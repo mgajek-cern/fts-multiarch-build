@@ -2,12 +2,10 @@
 *.key
 *.srl
 *.csr
-rucio-truststore.jks
 *.namespaces
 *.signing_policy
 *.tgz
 storm-cacerts
-trustanchors
 !rucio_ca.key.pem
 !rucio_ca.pem
 __pycache__
