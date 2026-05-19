@@ -188,7 +188,8 @@ configure_rses() {
 
     # XRD1/XRD2 on both instances (GSI auth works everywhere).
     for rse in XRD1 XRD2; do
-        local host=$(echo "$rse" | tr '[:upper:]' '[:lower:]')
+        local host
+        host=$(echo "$rse" | tr '[:upper:]' '[:lower:]')
         $cmd rse add "$rse" || true
         $cmd rse set-attribute --rse "$rse" --key fts --value "$fts_endpoint"
         $cmd rse set-attribute --rse "$rse" --key verify_checksum --value True
@@ -199,7 +200,8 @@ configure_rses() {
 
     # WEBDAV on both instances.
     for rse in WEBDAV1 WEBDAV2; do
-        local host=$(echo "$rse" | tr '[:upper:]' '[:lower:]')
+        local host
+        host=$(echo "$rse" | tr '[:upper:]' '[:lower:]')
         $cmd rse add "$rse" || true
         $cmd rse set-attribute --rse "$rse" --key fts --value "$fts_endpoint"
         $cmd rse add-protocol "$rse" --scheme davs --hostname "$host" --port 443 --prefix /webdav \
@@ -211,7 +213,8 @@ configure_rses() {
     if [[ "$label" == "Rucio-OIDC" ]]; then
 
         for rse in XRD3 XRD4; do
-            local host=$(echo "$rse" | tr '[:upper:]' '[:lower:]')
+            local host
+            host=$(echo "$rse" | tr '[:upper:]' '[:lower:]')
             $cmd rse add "$rse" || true
             $cmd rse set-attribute --rse "$rse" --key fts --value "$FTS_OIDC"
             $cmd rse set-attribute --rse "$rse" --key oidc_support --value True
@@ -224,7 +227,8 @@ configure_rses() {
         done
 
         for rse in STORM1 STORM2; do
-            local host=$(echo "$rse" | tr '[:upper:]' '[:lower:]')
+            local host
+            host=$(echo "$rse" | tr '[:upper:]' '[:lower:]')
             $cmd rse add "$rse" || true
             $cmd rse set-attribute --rse "$rse" --key fts --value "$FTS_OIDC"
             $cmd rse set-attribute --rse "$rse" --key oidc_support --value True
@@ -245,7 +249,8 @@ configure_rses() {
         done
 
         for rse in TEAPOT1 TEAPOT2; do
-            local instance=$(echo "$rse" | tr '[:upper:]' '[:lower:]')
+            local instance
+            instance=$(echo "$rse" | tr '[:upper:]' '[:lower:]')
             $cmd rse add "$rse" || true
             $cmd rse set-attribute --rse "$rse" --key fts --value "$FTS_OIDC"
             $cmd rse set-attribute --rse "$rse" --key oidc_support --value True
@@ -298,8 +303,9 @@ _register_minio_rses() {
             --domain-json '{"wan":{"read":1,"write":1,"delete":1,"third_party_copy_read":1,"third_party_copy_write":1},"lan":{"read":1,"write":1,"delete":1}}'
         $cmd account set-limits ddmlab "$rse" -1 || true
         $cmd account set-limits root   "$rse" -1 || true
-        [[ -n "$extra_accounts" ]] && \
+        if [[ -n "$extra_accounts" ]]; then
             $cmd account set-limits "$extra_accounts" "$rse" -1 || true
+        fi
     done
 
     $cmd rse add-distance MINIO1 MINIO2 --distance 1 || true
@@ -348,8 +354,8 @@ ACCOUNTS
                 -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || \
                 kubectl -n "$K8S_NAMESPACE" get pods -l "app=${svc}" \
                 -o jsonpath='{.items[0].metadata.name}')
-            kubectl -n "$K8S_NAMESPACE" cp "$tmp_cfg" \
-                "${pod}:/opt/rucio/etc/rse-accounts.cfg" $container
+            # shellcheck disable=SC2086
+            kubectl -n "$K8S_NAMESPACE" cp "$tmp_cfg" "${pod}:/opt/rucio/etc/rse-accounts.cfg" $container
             ;;
     esac
 

@@ -9,8 +9,8 @@ echo "upgrading database..."
 /usr/share/fts/fts-database-upgrade.py -y 2>&1 || echo "DB upgrade finished (errors ignored)"
 
 # Check for specific CA hash if needed for debugging
-ls -al /etc/grid-security/certificates/ | grep 5fca1cb1 || true
-ls -al /etc/grid-security/certificates/ | grep b96dc756 || true
+ls /etc/grid-security/certificates/5fca1cb1* 2>/dev/null || true
+ls /etc/grid-security/certificates/b96dc756* 2>/dev/null || true
 
 update-ca-trust 2>/dev/null || true
 
