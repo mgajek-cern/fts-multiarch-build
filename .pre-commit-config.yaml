@@ -15,12 +15,24 @@ repos:
       - id: check-case-conflict
       - id: check-shebang-scripts-are-executable
         files: ^shared/scripts/.*\.sh$
+      - id: check-symlinks          # catches broken symlinks in files/
+      - id: destroyed-symlinks      # catches symlinks turned into files
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.11
     hooks:
-       # Run the linter.
       - id: ruff-check
         args: [ --fix ]
-      # Run the formatter.
       - id: ruff-format
+
+  - repo: https://github.com/gruntwork-io/pre-commit
+    rev: v0.1.24
+    hooks:
+      - id: helmlint
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        files: ^shared/scripts/.*\.sh$
+        exclude: ^shared/scripts/fts/wait-for-it\.sh$

@@ -14,10 +14,6 @@ on:
         type: string
         default: compose
         description: "compose | k8s"
-      compose_file:
-        required: false
-        type: string
-        default: deploy/compose/docker-compose.ci.yml
 
 jobs:
   test:
@@ -27,6 +23,7 @@ jobs:
     env:
       TESTBED_HOST_SOURCE: ${{ github.workspace }}
       RUNTIME: ${{ inputs.runtime }}
+      COMPOSE_FILE: deploy/compose/docker-compose.ci.yml
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -42,7 +39,7 @@ jobs:
       # Compose path
       - name: Start stack (compose)
         if: inputs.runtime == 'compose'
-        run: docker compose -f ${{ inputs.compose_file }} up -d
+        run: make compose-up
 
       # k8s path (kind cluster)
       - name: Set up kind cluster
@@ -74,7 +71,7 @@ jobs:
             [[ "$code" == "200" ]] && { echo "fts-oidc REST ready"; exit 0; }
             echo "  [$i] HTTP $code"; sleep 5
           done
-          docker compose -f ${{ inputs.compose_file }} logs fts-oidc; exit 1
+          make compose-logs-fts-oidc; exit 1
 
       - name: Wait for fts-oidc (k8s)
         if: inputs.runtime == 'k8s'
@@ -157,7 +154,7 @@ jobs:
           for svc in fts fts-oidc xrd1 xrd2 rucio rucio-oidc keycloak webdav1 \
                      storm1 storm2 minio1 teapot1 teapot2; do
             echo "=== $svc ===" && \
-            docker compose -f ${{ inputs.compose_file }} logs $svc 2>/dev/null || true
+            make compose-logs $svc 2>/dev/null || true
           done
 
       - name: Dump logs on failure (k8s)
@@ -175,7 +172,7 @@ jobs:
 
       - name: Tear down (compose)
         if: always() && inputs.runtime == 'compose'
-        run: docker compose -f ${{ inputs.compose_file }} down -v
+        run: make compose-down
 
       - name: Tear down (k8s)
         if: always() && inputs.runtime == 'k8s'
