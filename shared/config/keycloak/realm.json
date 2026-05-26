@@ -248,7 +248,7 @@
     },
     {
       "name": "aud:xrd3",
-      "description": "Adds https://xrd3:1094 to the token's aud claim for SciTokens validation on xrd3.",
+      "description": "Adds xrd3 to the token's aud claim for SciTokens validation on xrd3.",
       "protocol": "openid-connect",
       "attributes": {
         "display.on.consent.screen": "false",
@@ -260,7 +260,7 @@
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-mapper",
           "config": {
-            "included.custom.audience": "https://xrd3:1094",
+            "included.custom.audience": "xrd3",
             "access.token.claim": "true",
             "id.token.claim": "false"
           }
@@ -269,7 +269,7 @@
     },
     {
       "name": "aud:xrd4",
-      "description": "Adds https://xrd4:1094 to the token's aud claim for SciTokens validation on xrd4.",
+      "description": "Adds xrd4 to the token's aud claim for SciTokens validation on xrd4.",
       "protocol": "openid-connect",
       "attributes": {
         "display.on.consent.screen": "false",
@@ -281,7 +281,7 @@
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-mapper",
           "config": {
-            "included.custom.audience": "https://xrd4:1094",
+            "included.custom.audience": "xrd4",
             "access.token.claim": "true",
             "id.token.claim": "false"
           }
