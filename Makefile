@@ -15,7 +15,7 @@ RUNTIME ?= compose
 # Anchor for compose bind-mounts. Override if running from an unusual shell.
 export TESTBED_HOST_SOURCE ?= $(CURDIR)
 
-COMPOSE_FILE := deploy/compose/docker-compose.yml
+COMPOSE_FILE ?= deploy/compose/docker-compose.yml
 COMPOSE      := docker compose -f $(COMPOSE_FILE)
 
 # Helm / Kubernetes
