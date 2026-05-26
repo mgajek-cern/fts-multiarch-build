@@ -185,7 +185,7 @@
     },
     {
       "name": "aud:storm1",
-      "description": "Adds https://storm1:8443 to the token's aud claim for StoRM WebDAV validation on storm1.",
+      "description": "Adds storm1 to the token's aud claim for StoRM WebDAV validation on storm1.",
       "protocol": "openid-connect",
       "attributes": {
         "display.on.consent.screen": "false",
@@ -197,7 +197,7 @@
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-mapper",
           "config": {
-            "included.custom.audience": "https://storm1:8443",
+            "included.custom.audience": "storm1",
             "access.token.claim": "true",
             "id.token.claim": "false"
           }
@@ -206,7 +206,7 @@
     },
     {
       "name": "aud:storm2",
-      "description": "Adds https://storm2:8443 to the token's aud claim for StoRM WebDAV validation on storm2.",
+      "description": "Adds storm2 to the token's aud claim for StoRM WebDAV validation on storm2.",
       "protocol": "openid-connect",
       "attributes": {
         "display.on.consent.screen": "false",
@@ -218,7 +218,7 @@
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-mapper",
           "config": {
-            "included.custom.audience": "https://storm2:8443",
+            "included.custom.audience": "storm2",
             "access.token.claim": "true",
             "id.token.claim": "false"
           }
